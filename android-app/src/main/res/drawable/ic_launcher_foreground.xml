@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Fund trend icon: up arrow with bar chart -->
+    <path
+        android:fillColor="#6366f1"
+        android:pathData="M34,72 L34,54 L44,54 L44,42 L54,42 L54,36 L64,36 L64,54 L74,54 L74,72 Z" />
+    <path
+        android:fillColor="#8b92a5"
+        android:pathData="M34,78 L74,78" android:strokeWidth="2"
+        android:strokeColor="#8b92a5" />
+    <path
+        android:fillColor="#22c55e"
+        android:pathData="M44,54 L44,56 L54,56 L54,46 L44,46 Z" />
+</vector>

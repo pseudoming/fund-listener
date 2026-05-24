@@ -1,0 +1,357 @@
+/* ============================================================
+   基金监控系统 · 舒适温馨暖色调设计系统 (Cozy Light)
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+  /* 温馨暖白/浅米色背景 */
+  --color-bg:          #faf6f0; 
+  --color-bg-card:     #ffffff; 
+  --color-bg-card-alt: #f5efe6;
+  --color-bg-input:    #fdfcfb;
+  --color-border:      #eaddcd; /* 温暖浅褐边框 */
+
+  /* 极致高对比度阳间文本 (深暖褐与中暖褐) */
+  --color-text:           #3c2f2f; /* 深褐/黑 */
+  --color-text-secondary: #6d5c5c; /* 中褐 */
+  --color-text-muted:     #9e8e8e; /* 浅褐 */
+
+  /* 经典阳间红绿功能色 */
+  --color-rise:        #e11d48;   /* 温暖玫瑰红/起 */
+  --color-rise-bg:     #ffe4e6;
+  --color-fall:        #16a34a;   /* 温暖翠绿/落 */
+  --color-fall-bg:     #dcfce7;
+  --color-flat:        #857676;   /* 平 */
+
+  /* 品牌温暖琥珀强调色 */
+  --color-accent:      #d97706;   /* 琥珀金 */
+  --color-accent-soft: #fef3c7;
+
+  /* 间距 */
+  --space-xs:  4px;
+  --space-sm:  8px;
+  --space-md:  12px;
+  --space-lg:  16px;
+  --space-xl:  20px;
+  --space-2xl: 24px;
+
+  /* 圆角 */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+
+  /* 字体 */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'SF Mono', 'Menlo', monospace;
+
+  /* 投影 */
+  --shadow-soft: 0 4px 20px rgba(139, 92, 26, 0.05);
+  --shadow-card: 0 6px 24px rgba(139, 92, 26, 0.07);
+  --shadow-glass: 0 10px 30px rgba(139, 92, 26, 0.06);
+  --shadow-glow-rise: 0 0 12px rgba(225, 29, 72, 0.15);
+  --shadow-glow-fall: 0 0 12px rgba(22, 163, 74, 0.15);
+  
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast: 200ms;
+  --duration-normal: 400ms;
+}
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.5;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  /* 阳间温馨微渐变背景 */
+  background-image: 
+    radial-gradient(circle at 10% 20%, #fcfbf9, transparent 50%),
+    radial-gradient(circle at 90% 80%, #f7f3eb, transparent 50%);
+  background-attachment: fixed;
+}
+
+/* 统一居中容器：在桌面端居中，在手机端填满，永不乱飞 */
+#app {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  position: relative;
+  background: var(--color-bg);
+  box-shadow: 0 0 40px rgba(139, 92, 26, 0.05);
+}
+
+/* --- 通用工具类 --------------------------------------------- */
+.text-rise   { color: var(--color-rise); }
+.text-fall   { color: var(--color-fall); }
+.text-flat   { color: var(--color-flat); }
+.text-secondary { color: var(--color-text-secondary); }
+.text-muted  { color: var(--color-text-muted); }
+
+.font-mono   { font-family: var(--font-mono); letter-spacing: -0.02em; }
+.text-num    { font-family: var(--font-mono); font-weight: 500; letter-spacing: -0.01em; }
+.font-medium { font-weight: 500; }
+.font-semibold { font-weight: 600; }
+.font-bold   { font-weight: 700; }
+
+/* --- 页面顶栏 (Warm Cozy) ---------------------------------- */
+.page-header {
+  padding: var(--space-xl) var(--space-lg) var(--space-md);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.page-header__title {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--color-text);
+}
+
+.page-header__subtitle {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin-top: 4px;
+}
+
+/* --- 统一按钮系统 (Unified Button System) ---------------- */
+.btn {
+  height: 44px;
+  padding: 0 20px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  transition: all var(--duration-fast) var(--ease-out);
+  border: 1px solid transparent;
+  outline: none;
+  user-select: none;
+}
+
+.btn:active {
+  transform: scale(0.96);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn--primary {
+  background: var(--color-accent);
+  color: #ffffff;
+}
+
+.btn--primary:hover {
+  background: #c26a05;
+}
+
+.btn--secondary {
+  background: var(--color-bg-card-alt);
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.btn--secondary:hover {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.btn--danger {
+  background: rgba(225, 29, 72, 0.1);
+  color: var(--color-rose);
+  border-color: rgba(225, 29, 72, 0.15);
+}
+
+.btn--danger:hover {
+  background: rgba(225, 29, 72, 0.2);
+  border-color: rgba(225, 29, 72, 0.3);
+}
+
+/* --- 表单控件 (Form Controls) ----------------------------- */
+.form-select {
+  width: 100%;
+  padding: 6px 28px 6px var(--space-sm);
+  font-size: 13px;
+  font-family: var(--font-sans);
+  color: var(--color-text);
+  background-color: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: all var(--duration-fast);
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%239e8e8e%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 10px auto;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.form-select:focus {
+  border-color: var(--color-accent) !important;
+  box-shadow: 0 0 0 2px var(--color-accent-soft);
+}
+
+/* --- 卡片基础 --------------------------------------------- */
+.glass-panel {
+  background: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-soft);
+}
+
+.card {
+  background: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+  padding: var(--space-lg);
+  transition: transform var(--duration-fast) var(--ease-spring),
+              box-shadow var(--duration-fast) var(--ease-out),
+              border-color var(--duration-fast) var(--ease-out);
+}
+
+.card:active {
+  transform: scale(0.98);
+}
+
+/* --- 动态光晕效果 (Warm Tint) ----------------------------- */
+.card-glow-rise {
+  box-shadow: var(--shadow-glow-rise);
+  border-color: rgba(225, 29, 72, 0.2);
+}
+
+.card-glow-fall {
+  box-shadow: var(--shadow-glow-fall);
+  border-color: rgba(22, 163, 74, 0.2);
+}
+
+/* --- 标签胶囊 ---------------------------------------------- */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.tag--rise { background: var(--color-rise-bg); color: var(--color-rise); }
+.tag--fall { background: var(--color-fall-bg); color: var(--color-fall); }
+.tag--flat { background: #efebe9; color: var(--color-flat); }
+
+/* --- 动画 -------------------------------------------------- */
+@keyframes fadeInUpSpring {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-in {
+  animation: fadeInUpSpring var(--duration-normal) var(--ease-spring) both;
+}
+
+/* --- 覆盖 Vant 组件系统样式以融入温馨亮色主题 ----------- */
+:root {
+  --van-primary-color: var(--color-accent);
+  --van-background: transparent;
+  --van-background-2: var(--color-bg-card);
+  --van-text-color: var(--color-text);
+  --van-text-color-2: var(--color-text-secondary);
+  --van-text-color-3: var(--color-text-muted);
+  --van-border-color: var(--color-border);
+  
+  --van-nav-bar-background: rgba(250, 246, 240, 0.9);
+  --van-nav-bar-title-text-color: var(--color-text);
+}
+
+.van-nav-bar {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--color-border);
+}
+.van-nav-bar::after { display: none; }
+
+.van-cell {
+  background: var(--color-bg-card);
+  color: var(--color-text);
+}
+.van-field__control {
+  color: var(--color-text) !important;
+}
+
+/* 弹出框/面板等 */
+.van-popup, .van-action-sheet, .van-dialog {
+  background: #ffffff !important;
+  color: var(--color-text) !important;
+}
+
+.van-dialog__content {
+  color: var(--color-text-secondary) !important;
+}
+
+.van-dialog__footer {
+  border-top: 1px solid var(--color-border);
+}
+
+.van-button--default {
+  background: var(--color-bg-card-alt) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+.van-button--primary {
+  background: var(--color-accent) !important;
+  border-color: var(--color-accent) !important;
+  color: #ffffff !important;
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}

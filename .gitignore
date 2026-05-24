@@ -1,0 +1,62 @@
+# IDE
+.idea/
+.vscode/
+.kotlin/
+*.iml
+
+# Node / Frontend
+node_modules/
+dist/
+.next/
+
+# Gradle / Android / Kotlin
+.gradle/
+build/
+local.properties
+keystore.properties
+*.jks
+*.apk
+*.aab
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Databases (Prevent leaking personal fund data)
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Binaries and large dependencies
+chrome/
+chrome-linux64/
+*.zip
+
+# Logs
+*.log
+chrome_log.txt
+
+# Temp / Generated Data
+scratch/
+baidu_content.html
+baidu_mcp_screenshot.png
+baidu_screenshot.png
+ocr_confirmation_list_final.png
+ocr_select_fixed.png
+dashboard2.json
+dashboard_output.json
+opencode.json
+.antigravitycli/
+test-data/
+
+# AI Agent Workflow
+.agents/
+
+# Playwright Test Output
+test-results/
+playwright-report/

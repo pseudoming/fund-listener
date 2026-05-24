@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">基金监控</string>
+    <string name="channel_name">基金数据服务</string>
+    <string name="notification_text">基金数据服务运行中</string>
+</resources>
