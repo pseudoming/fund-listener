@@ -173,8 +173,25 @@ const chartData = computed(() => {
 
 const chartPoints = computed(() => {
   const key = chartMode.value === 'PE' ? 'weightedPe' : 'weightedPb'
-  return chartData.value
-    .map(s => s[key] ? parseFloat(s[key]) : null)
+  let lastValid = null
+
+  // [FIX #2 背景说明]:
+  // 由于 QDII 或非交易日的原因，东方财富 API 会出现数据缺失，导致后端存入 null。
+  // 之前前任开发者将带有 null 的数组直接传给了 Sparkline 图表，导致 SVG 坐标计算出 NaN 引发全页崩溃。
+  // 在此增加数据清洗层：采用前向填充（Forward-fill）策略。
+  // 遇到空数据时直接取前一个有效值，确保交给底层图表组件的一定是连续、纯净的数字数组。
+  const filled = chartData.value.map(s => {
+    let val = s[key] ? parseFloat(s[key]) : null
+    if (val == null || isNaN(val)) {
+      return lastValid // 前向填充
+    } else {
+      lastValid = val
+      return val
+    }
+  })
+  
+  // 若数组开头有 null，予以剔除，保证只渲染有效片段
+  return filled.filter(p => p !== null)
 })
 
 const chartColor = computed(() => '#6366f1')

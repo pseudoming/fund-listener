@@ -1,3 +1,4 @@
+.gitignore
 # IDE
 .idea/
 .vscode/
@@ -60,3 +61,8 @@ test-data/
 # Playwright Test Output
 test-results/
 playwright-report/
+*-snapshots/
+
+data/
+scripts/
+frontend/src/views/mock

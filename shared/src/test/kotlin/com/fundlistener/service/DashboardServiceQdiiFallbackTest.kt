@@ -113,10 +113,17 @@ class DashboardServiceQdiiFallbackTest {
         mockRepository,
         CustomValuationEngine(mockRepository, object : com.fundlistener.client.QuoteClient(io.ktor.client.HttpClient(io.ktor.client.engine.okhttp.OkHttp)) {
             override suspend fun fetchQuotes(targets: List<Pair<String, String>>): Map<String, Quote> = emptyMap()
-        }, com.fundlistener.client.TianTianFundClient(io.ktor.client.HttpClient(io.ktor.client.engine.okhttp.OkHttp)))
+        }, org.mockito.kotlin.mock(), com.fundlistener.client.TianTianFundClient(io.ktor.client.HttpClient(io.ktor.client.engine.okhttp.OkHttp)))
     )
 
-    private val dashboardService = DashboardService(dummyFundService, mockRepository)
+    private val dashboardService = DashboardService(
+        dummyFundService, 
+        mockRepository,
+        object : com.fundlistener.client.QuoteClient(io.ktor.client.HttpClient(io.ktor.client.engine.okhttp.OkHttp)) {
+            override suspend fun fetchQuotes(targets: List<Pair<String, String>>): Map<String, Quote> = emptyMap()
+        },
+        ValuationDisplayNormalizer(mockRepository)
+    )
 
     @Test
     fun `test QDII fallback valuation using linked ETF when primary API returns 0`() = runBlocking {
@@ -137,7 +144,7 @@ class DashboardServiceQdiiFallbackTest {
         assertEquals("2.00", qdiiFund.estimatedGrowthRate)
         
         // PNL for 1000 shares: (1.5300 - 1.5000) * 1000 = 30.00
-        assertEquals("30.00", qdiiFund.todayPnl)
+        assertEquals("30.00", qdiiFund.latestPnl)
     }
 
     @Test
@@ -202,6 +209,6 @@ class DashboardServiceQdiiFallbackTest {
         assertEquals("1.4000", qdiiFund.estimatedNav)
         
         // PNL should be calculated against 16th (1.3000): (1.4000 - 1.3000) * 1000 = 100.00
-        assertEquals("100.00", qdiiFund.todayPnl)
+        assertEquals("100.00", qdiiFund.latestPnl)
     }
 }

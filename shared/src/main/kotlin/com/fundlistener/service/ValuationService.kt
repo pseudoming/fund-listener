@@ -66,13 +66,16 @@ class ValuationService(
         val snapshot = ValuationSnapshot(
             fundCode = code,
             snapshotTime = now,
-            estimatedNav = estimation?.nav?.toBigDecimalOrNull() ?: BigDecimal.ZERO,
+            estimatedNav = estimation?.estimatedNav?.toBigDecimalOrNull() ?: BigDecimal.ZERO,
             estimatedGrowthRate = estimation?.estimatedGrowthRate?.toBigDecimalOrNull() ?: BigDecimal.ZERO,
             weightedPe = result.weightedPE?.toBigDecimalOrNull(),
             weightedPb = result.weightedPB?.toBigDecimalOrNull(),
             pePercentile = (pePercentileResult as? PercentileCalculator.PercentileResult.Valid)?.percentile,
             pbPercentile = (pbPercentileResult as? PercentileCalculator.PercentileResult.Valid)?.percentile,
             coverageRate = result.coveragePercent.toBigDecimalOrNull(),
+            reportDate = result.reportDate,
+            totalRatioCovered = result.totalRatioCovered.toBigDecimalOrNull(),
+            totalRatio = result.totalRatio.toBigDecimalOrNull(),
             createdAt = now
         )
         repository.insertSnapshot(snapshot)

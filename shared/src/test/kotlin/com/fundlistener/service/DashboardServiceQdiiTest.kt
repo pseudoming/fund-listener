@@ -101,10 +101,17 @@ class DashboardServiceQdiiTest {
         mockRepository,
         CustomValuationEngine(mockRepository, object : com.fundlistener.client.QuoteClient(io.ktor.client.HttpClient(io.ktor.client.engine.okhttp.OkHttp)) {
             override suspend fun fetchQuotes(targets: List<Pair<String, String>>): Map<String, Quote> = emptyMap()
-        }, com.fundlistener.client.TianTianFundClient(io.ktor.client.HttpClient(io.ktor.client.engine.okhttp.OkHttp)))
+        }, org.mockito.kotlin.mock(), com.fundlistener.client.TianTianFundClient(io.ktor.client.HttpClient(io.ktor.client.engine.okhttp.OkHttp)))
     )
 
-    private val dashboardService = DashboardService(dummyFundService, mockRepository)
+    private val dashboardService = DashboardService(
+        dummyFundService, 
+        mockRepository,
+        object : com.fundlistener.client.QuoteClient(io.ktor.client.HttpClient(io.ktor.client.engine.okhttp.OkHttp)) {
+            override suspend fun fetchQuotes(targets: List<Pair<String, String>>): Map<String, Quote> = emptyMap()
+        },
+        ValuationDisplayNormalizer(mockRepository)
+    )
 
     @Test
     fun `TestCase 5 - State Machine isSettled remains false in realtime mode when official nav is delayed`() = runBlocking {

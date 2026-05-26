@@ -53,20 +53,31 @@
             <span class="dashboard__metric-value font-mono">¥{{ formatVal(dashboardData.totalMarketValue) }}</span>
           </div>
           <div class="dashboard__metric">
-            <span class="dashboard__metric-label">今日盈亏</span>
+            <span class="dashboard__metric-label">{{ dashboardLabels.pnlLabel }}</span>
             <span class="dashboard__metric-value font-mono" :class="pnlColor">
-              {{ pnlPrefix }}¥{{ formatValAbs(dashboardData.todayPnl) }}
+              {{ pnlPrefix }}¥{{ formatValAbs(dashboardData.latestPnl) }}
             </span>
           </div>
           <div class="dashboard__metric">
-            <span class="dashboard__metric-label">估值收益率</span>
+            <span class="dashboard__metric-label">{{ dashboardLabels.percentLabel }}</span>
             <span class="dashboard__metric-value font-mono" :class="pnlColor">
-              {{ pnlPrefix }}{{ dashboardData.todayPnlPercent }}%
+              {{ pnlPrefix }}{{ dashboardData.latestPnlPercent }}%
             </span>
           </div>
         </div>
+        
+        <div class="market-ticker" v-if="dashboardData.marketIndices && dashboardData.marketIndices.length > 0">
+          <span class="ticker-item font-mono" 
+            v-for="(idx, i) in dashboardData.marketIndices" 
+            :key="i"
+            :class="{'text-rise': idx.isRise, 'text-fall': idx.isFall}">
+            {{ idx.name }} {{ idx.changePercent }} {{ idx.isRise ? '↑' : (idx.isFall ? '↓' : '-') }}
+          </span>
+        </div>
       </div>
     </div>
+
+
 
     <!-- 持仓列表区 -->
     <main class="app__content">
@@ -79,48 +90,44 @@
             <p class="app__empty-text">暂无持仓，上传截图或搜索添加吧</p>
           </div>
 
-          <!-- 列表 -->
-          <div class="position-list" v-else>
-            <!-- 列表表头及排序 -->
-            <div class="list-header-bar">
-              <span class="list-title">全部持仓 ({{ positions.length }}只)</span>
-              <div class="list-sort-controls">
-                <div class="sort-dropdown-container">
-                  <button class="sort-dropdown-btn" @click.stop="toggleSortDropdown">
-                    <span>{{ currentSortLabel }}</span>
-                    <span class="select-arrow-mini">▼</span>
-                  </button>
-                  <Transition name="fade-slide">
-                    <div v-show="showSortDropdown" class="sort-dropdown-menu">
-                      <div 
-                        v-for="opt in sortOptions" 
-                        :key="opt.value" 
-                        class="sort-dropdown-item"
-                        :class="{ 'is-active': sortBy === opt.value }"
-                        @click.stop="selectSortOption(opt.value)"
-                      >
-                        <span class="item-text">{{ opt.label }}</span>
-                        <span v-if="sortBy === opt.value" class="item-check">✓</span>
-                      </div>
-                    </div>
-                  </Transition>
+          <!-- 列表包裹区 -->
+          <div v-else class="position-wrap">
+            <!-- 列表表头及排序 (位于卡片外部, 开启悬浮) -->
+            <div class="sticky-headers">
+              <div class="list-header-bar">
+                <span class="list-title">全部持仓 ({{ positions.length }}只)</span>
+                <div class="list-actions-right" style="display: flex; gap: 12px; align-items: center;">
+                  <div class="list-sort-controls">
+                    <SortDropdown v-model="sortBy" :options="sortOptions" />
+                    <button class="sort-order-btn-double" @click="toggleSortOrder" :title="sortOrder === 'asc' ? '当前：升序' : '当前：降序'">
+                      <span class="arrow-up" :class="{ 'arrow-active': sortOrder === 'asc' }">▲</span>
+                      <span class="arrow-down" :class="{ 'arrow-active': sortOrder === 'desc' }">▼</span>
+                    </button>
+                  </div>
+                  <div class="analysis-btn" @click="$router.push('/portfolio-analysis')">
+                    <span>📊 持仓分析</span>
+                  </div>
                 </div>
-                <button class="sort-order-btn-double" @click="toggleSortOrder" :title="sortOrder === 'asc' ? '当前：升序' : '当前：降序'">
-                  <span class="arrow-up" :class="{ 'arrow-active': sortOrder === 'asc' }">▲</span>
-                  <span class="arrow-down" :class="{ 'arrow-active': sortOrder === 'desc' }">▼</span>
-                </button>
+              </div>
+              
+              <div class="list-header-row text-xs text-muted font-medium mb-1 px-4 flex">
+                <div class="col-name" style="flex: 2; text-align: left;">名称</div>
+                <div class="col-market" style="flex: 1.5; text-align: right;">金额/最新收益</div>
+                <div class="col-holding" style="flex: 1.5; text-align: right;">持有收益/率</div>
               </div>
             </div>
-            <FundCard
-              v-for="pos in sortedPositions" 
-              :key="pos.fundCode"
-              mode="position"
-              :data="pos"
-              :is-edit-mode="isEditMode"
-              :is-selected="selectedCodes.includes(pos.fundCode)"
-              @click="handleCardClick(pos)"
-            />
 
+            <!-- 纯白卡片容器，只包裹持仓项 -->
+            <div class="position-list">
+              <HoldingCard
+                v-for="pos in sortedPositions" 
+                :key="pos.fundCode"
+                :data="pos"
+                :is-edit-mode="isEditMode"
+                :is-selected="selectedCodes.includes(pos.fundCode)"
+                @click="handleCardClick(pos)"
+              />
+            </div>
 
             <!-- 底部批量管理区 -->
             <div class="list-footer-batch-container">
@@ -166,8 +173,10 @@ import { fetchDashboard } from '../api/fund'
 import { showToast, showConfirmDialog } from 'vant'
 import { deletePosition } from '../api/position'
 import FundSearch from '../components/FundSearch.vue'
-import FundCard from '../components/FundCard.vue'
+import HoldingCard from '../components/HoldingCard.vue'
 import OcrUpload from '../components/OcrUpload.vue'
+import SortDropdown from '../components/SortDropdown.vue'
+import { getDashboardLabels } from '../utils/formatters.js'
 
 const router = useRouter()
 const dashboardData = ref(null)
@@ -187,34 +196,13 @@ const toggleSortOrder = () => {
   sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
 }
 
-// 自定义下拉菜单状态与逻辑
-const showSortDropdown = ref(false)
 const sortOptions = [
   { value: 'marketValue', label: '金额' },
-  { value: 'todayPnl', label: '昨日收益' },
-  { value: 'totalPnlAmount', label: '持有收益' },
+  { value: 'latestPnl', label: '昨日收益' },
+  { value: 'estimatedGrowthRate', label: '最新涨跌' },
   { value: 'totalPnlRate', label: '持有收益率' },
   { value: 'growthRate', label: '估值涨幅' }
 ]
-
-const currentSortLabel = computed(() => {
-  return sortOptions.find(o => o.value === sortBy.value)?.label || '金额'
-})
-
-const toggleSortDropdown = () => {
-  showSortDropdown.value = !showSortDropdown.value
-}
-
-const selectSortOption = (val) => {
-  sortBy.value = val
-  showSortDropdown.value = false
-}
-
-const closeDropdown = (e) => {
-  if (!e.target.closest('.sort-dropdown-container')) {
-    showSortDropdown.value = false
-  }
-}
 
 const sortedPositions = computed(() => {
   return [...positions.value].sort((a, b) => {
@@ -251,9 +239,12 @@ const sortedPositions = computed(() => {
       const sharesB = parseFloat(b.totalShares || '0')
       const navB = parseFloat(b.estimatedNav || '0')
       valB = costB > 0 ? ((sharesB * navB) - costB) / costB : 0.0
-    } else if (sortBy.value === 'todayPnl') {
-      valA = parseFloat(a.todayPnl || '0')
-      valB = parseFloat(b.todayPnl || '0')
+    } else if (sortBy.value === 'latestPnl') {
+      valA = parseFloat(a.latestPnl || '0')
+      valB = parseFloat(b.latestPnl || '0')
+    } else if (sortBy.value === 'estimatedGrowthRate') {
+      valA = parseFloat(a.estimatedGrowthRate || '0')
+      valB = parseFloat(b.estimatedGrowthRate || '0')
     }
 
     if (sortOrder.value === 'asc') {
@@ -371,11 +362,6 @@ const onRefresh = () => {
 
 onMounted(() => {
   loadData()
-  window.addEventListener('click', closeDropdown)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('click', closeDropdown)
 })
 
 const toggleUploadZone = () => {
@@ -415,25 +401,24 @@ const formatValAbs = (val) => {
   return n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+// 动态大盘标签
+const dashboardLabels = computed(() => {
+  if (!dashboardData.value || !dashboardData.value.funds) {
+    return { pnlLabel: '今日盈亏', percentLabel: '估值收益率' }
+  }
+  return getDashboardLabels(dashboardData.value.funds)
+})
+
+// 盈亏颜色和符号
 const pnlColor = computed(() => {
-  const pnl = parseFloat(dashboardData.value?.todayPnl || '0')
-  if (pnl > 0) return 'text-rise'
-  if (pnl < 0) return 'text-fall'
-  return ''
+  const pnl = parseFloat(dashboardData.value?.latestPnl || '0')
+  return pnl > 0 ? 'text-rise' : pnl < 0 ? 'text-fall' : ''
 })
 
 const pnlPrefix = computed(() => {
-  const pnl = parseFloat(dashboardData.value?.todayPnl || '0')
+  const pnl = parseFloat(dashboardData.value?.latestPnl || '0')
   return pnl >= 0 ? '+' : ''
 })
-
-
-
-
-
-
-
-
 
 
 
@@ -502,17 +487,6 @@ const copyText = async (text) => {
   box-shadow: 0 4px 6px rgba(0,0,0,0.04);
 }
 
-.search-wrap {
-  padding: var(--space-sm) var(--space-lg) var(--space-md);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: rgba(250, 246, 240, 0.95);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.03);
-  margin-bottom: var(--space-sm);
-}
 
 .ocr-wrap {
   padding: 0 var(--space-lg) var(--space-md);
@@ -527,6 +501,14 @@ const copyText = async (text) => {
 .dashboard-card {
   padding: 0;
   overflow: hidden;
+}
+
+.penetration-wrap {
+  padding: 0 var(--space-lg) var(--space-md);
+}
+
+.trend-wrap {
+  padding: 0 var(--space-lg) var(--space-md);
 }
 
 .dashboard__summary {
@@ -557,11 +539,35 @@ const copyText = async (text) => {
   letter-spacing: -0.02em;
 }
 
-/* 列表与布局 */
-.app__content {
-  padding: 0 var(--space-lg) var(--space-2xl);
-  transition: padding-bottom var(--duration-normal);
+.market-ticker {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--space-md) var(--space-xl);
+  border-top: 1px dashed var(--color-border);
+  background: var(--color-bg-card-alt);
 }
+.ticker-item {
+  font-size: 13px;
+  font-weight: 600;
+}
+.analysis-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+  padding: 4px 10px;
+  border-radius: 16px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: opacity var(--duration-fast);
+}
+.analysis-btn:active {
+  opacity: 0.7;
+}
+
+/* 列表与布局 */
 
 .app__content.has-batch-bar {
   padding-bottom: 80px;
@@ -570,7 +576,11 @@ const copyText = async (text) => {
 .position-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
+  background: var(--color-bg-card);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  gap: 0;
 }
 
 /* 底部批量管理区 */
@@ -601,6 +611,19 @@ const copyText = async (text) => {
   border-color: var(--color-accent);
   background: var(--color-accent-soft);
   color: var(--color-accent);
+}
+
+.btn-batch-manage:active {
+  transform: scale(0.95);
+}
+
+.list-header-row {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .batch-manage-panel {
@@ -688,27 +711,24 @@ const copyText = async (text) => {
 }
 
 /* 空状态 */
-.app__empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px var(--space-lg);
-  margin-top: var(--space-xl);
-  text-align: center;
-  border-radius: var(--radius-xl);
+
+/* 悬浮表头 */
+.sticky-headers {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--color-bg, #f7f8fa);
+  padding-top: var(--space-md);
+  margin-top: calc(-1 * var(--space-md));
+  padding-bottom: 4px;
 }
 
-.app__empty-icon {
-  font-size: 56px;
-  margin-bottom: var(--space-md);
-  opacity: 0.9;
+/* 突破 van-pull-refresh 的 overflow:hidden 限制，否则 position: sticky 会失效 */
+:deep(.van-pull-refresh) {
+  overflow: visible !important;
 }
-
-.app__empty-text {
-  font-size: 15px;
-  color: var(--color-text-secondary);
-  font-weight: 500;
+:deep(.van-pull-refresh__track) {
+  overflow: visible !important;
 }
 
 /* 列表头部条 */
@@ -733,83 +753,6 @@ const copyText = async (text) => {
   gap: var(--space-xs);
 }
 
-/* Custom Dropdown Styling */
-.sort-dropdown-container {
-  position: relative;
-  display: inline-block;
-}
-
-.sort-dropdown-btn {
-  background: var(--color-bg-card-alt);
-  border: 1px solid var(--color-border);
-  border-radius: 16px;
-  padding: 4px 12px;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--color-text-secondary);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  cursor: pointer;
-  transition: all var(--duration-fast);
-  outline: none;
-  height: 28px;
-}
-
-.sort-dropdown-btn:hover {
-  border-color: var(--color-accent);
-  background: var(--color-accent-soft);
-  color: var(--color-accent);
-}
-
-.select-arrow-mini {
-  font-size: 8px;
-  color: var(--color-text-muted);
-  transition: transform var(--duration-fast);
-}
-
-.sort-dropdown-menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  background: #ffffff;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
-  min-width: 110px;
-  z-index: 100;
-  overflow: hidden;
-  padding: 4px 0;
-  transform-origin: top right;
-}
-
-.sort-dropdown-item {
-  padding: 8px 12px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  transition: all var(--duration-fast);
-}
-
-.sort-dropdown-item:hover {
-  background: var(--color-accent-soft);
-  color: var(--color-accent);
-}
-
-.sort-dropdown-item.is-active {
-  color: var(--color-accent);
-  font-weight: 700;
-  background: rgba(139, 90, 43, 0.05);
-}
-
-.item-check {
-  font-size: 10px;
-  font-weight: bold;
-}
 
 /* 升降序切换双箭头按钮 */
 .sort-order-btn-double {

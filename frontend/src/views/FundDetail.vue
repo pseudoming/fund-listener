@@ -21,79 +21,75 @@
     <van-skeleton title :row="5" :loading="loading" class="mt-4">
       <template v-if="!loading">
         <div class="detail-content">
-          <!-- Alipay-style Core Metrics Card -->
-          <FundCard
-            mode="detail"
-            :is-watchlist="currentMode === 'watchlist'"
-            :has-position="hasPosition"
-            :current-market-value="currentMarketValue"
-            :today-pnl="todayPnl"
-            :holding-pnl="holdingPnl"
-            :holding-pnl-rate="holdingPnlRate"
-            :current-nav="realtimeData?.estimatedNav || realtimeData?.nav"
-            :estimated-growth-rate="realtimeData?.estimatedGrowthRate"
-            :since-added-growth-rate="sinceAddedGrowthRate"
-            :estimation-time="realtimeData?.estimationTime"
-            :nav-date="realtimeData?.navDate"
-          />
+          <van-tabs v-model:active="activeTab" animated swipeable>
+            <!-- 第一 Tab: 持仓或概况 -->
+            <van-tab :title="hasPosition ? '持仓' : '概况'">
+              <div class="tab-pane-content">
+                <FundCard
+                  mode="detail"
+                  :is-watchlist="currentMode === 'watchlist'"
+                  :has-position="hasPosition"
+                  :current-market-value="currentMarketValue"
+                  :latest-pnl="latestPnl"
+                  :holding-pnl="holdingPnl"
+                  :holding-pnl-rate="holdingPnlRate"
+                  :current-nav="realtimeData?.estimatedNav || realtimeData?.nav"
+                  :estimated-growth-rate="realtimeData?.estimatedGrowthRate"
+                  :since-added-growth-rate="sinceAddedGrowthRate"
+                  :estimation-time="realtimeData?.estimationTime"
+                  :nav-date="realtimeData?.navDate"
+                  :is-settled="realtimeData?.isSettled"
+                />
 
-          <!-- 静态信息卡片 (份额、成本/经理、起购额)及交易操作 -->
-          <FundStaticInfo
-            :mode="currentMode"
-            :has-position="hasPosition"
-            :position="position"
-            :current-nav="realtimeData?.estimatedNav || realtimeData?.nav"
-            :fund-type="realtimeData?.type"
-            :fund-manager="realtimeData?.manager"
-            :linked-etf-code="linkedEtfCode"
-            :linked-etf-name="linkedEtfName"
-            @buy="openTrade('BUY')"
-            @sell="openTrade('SELL')"
-          />
+                <FundStaticInfo
+                  :mode="currentMode"
+                  :has-position="hasPosition"
+                  :position="position"
+                  :current-nav="realtimeData?.estimatedNav || realtimeData?.nav"
+                  :fund-type="realtimeData?.type"
+                  :fund-manager="realtimeData?.manager"
+                  :linked-etf-code="linkedEtfCode"
+                  :linked-etf-name="linkedEtfName"
+                  @buy="openTrade('BUY')"
+                  @sell="openTrade('SELL')"
+                />
 
-          <!-- 历史走势 -->
-          <div class="trend-section">
-            <FundTrendChart :code="code" />
-          </div>
+                <TransactionList v-if="currentMode === 'position'" :transactions="transactions" />
 
-          <!-- 估值仪表盘 -->
-          <div class="dashboard-section">
-            <ValuationDashboard :fund-code="code" />
-          </div>
-          
-          <div class="settings-btn-wrap">
-            <button class="btn btn--secondary" style="width: 100%;" @click="showValuationEditor = true">
-              自定义估值法设置
-            </button>
-          </div>
+                <!-- 移到第一个 Tab 的重仓股面板 -->
+                <HoldingsPanel
+                  v-if="topHoldings && topHoldings.length > 0"
+                  :fund-code="code"
+                  :preloaded-data="{ holdings: topHoldings, reportDate: holdingsReportDate }"
+                />
+              </div>
+            </van-tab>
 
-          <!-- 基金重仓 -->
-          <div class="holdings-section card" v-if="topHoldings && topHoldings.length > 0">
-            <div class="tx-title font-semibold" style="margin-bottom: var(--space-md);">前十大重仓股票</div>
-            <div class="holdings-list">
-              <div class="holding-item" v-for="h in topHoldings" :key="h.stockCode">
-                <div class="h-left">
-                  <div class="h-name">{{ h.stockName }}</div>
-                  <div class="h-code text-num text-muted">{{ h.stockCode }}</div>
-                </div>
-                <div class="h-right">
-                  <div class="h-ratio font-mono">{{ h.ratio }}%</div>
-                  <div class="h-bar-bg">
-                    <div class="h-bar-fill" :style="{ width: Math.min(parseFloat(h.ratio)*2, 100) + '%' }"></div>
-                  </div>
+            <!-- 走势 Tab -->
+            <van-tab title="走势">
+              <div class="tab-pane-content">
+                <TrendChart :code="code" />
+              </div>
+            </van-tab>
+
+            <!-- 估值 Tab -->
+            <van-tab title="估值">
+              <div class="tab-pane-content">
+                <ValuationDashboard :fund-code="code" />
+                
+                <div class="settings-btn-wrap" style="margin-bottom: var(--space-md);">
+                  <button class="btn btn--secondary" style="width: 100%;" @click="showValuationEditor = true">
+                    自定义估值法设置
+                  </button>
                 </div>
               </div>
-            </div>
-            <div class="h-footer text-muted" style="margin-top: 8px; font-size: 11px; text-align: right;">
-              更新日期: {{ holdingsReportDate }}
-            </div>
-          </div>
-
-          <!-- 交易明细 -->
-          <TransactionList v-if="currentMode === 'position'" :transactions="transactions" />
+            </van-tab>
+          </van-tabs>
         </div>
       </template>
     </van-skeleton>
+
+
 
     <!-- 交易弹窗 -->
     <van-action-sheet v-model:show="showTradeSheet" teleport="body" :title="tradeType === 'BUY' ? '买入基金' : '卖出基金'">
@@ -168,15 +164,18 @@ import { fetchFundRealtime, fetchFundHoldings, fetchFundTrend } from '../api/fun
 import { showToast, showConfirmDialog } from 'vant'
 import ValuationDashboard from '../components/ValuationDashboard.vue'
 import ValuationEditor from '../components/ValuationEditor.vue'
-import FundTrendChart from '../components/FundTrendChart.vue'
+import TrendChart from '../components/TrendChart.vue'
 import FundCard from '../components/FundCard.vue'
+import { getPnlLabel } from '../utils/formatters.js'
 import FundStaticInfo from '../components/FundStaticInfo.vue'
 import TransactionList from '../components/TransactionList.vue'
+import HoldingsPanel from '../components/HoldingsPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
 const code = route.params.code
 
+const activeTab = ref(0)
 const loading = ref(true)
 const position = ref(null)
 const transactions = ref([])
@@ -208,7 +207,7 @@ const currentMarketValue = computed(() => {
   return (shares * nav).toFixed(2)
 })
 
-const todayPnl = computed(() => {
+const latestPnl = computed(() => {
   if (!position.value || !realtimeData.value) return '0.00'
   const shares = parseFloat(position.value.totalShares) || 0
   const yesterdayNav = parseFloat(realtimeData.value.yesterdayNav || realtimeData.value.nav) || 0
@@ -216,12 +215,7 @@ const todayPnl = computed(() => {
   
   if (shares <= 0 || currentNav <= 0 || yesterdayNav <= 0) return '0.00'
 
-  const isOfficialUpdated = (realtimeData.value.navDate === realtimeData.value.estimationTime.split(' ')[0]) || 
-                            (realtimeData.value.nav === realtimeData.value.estimatedNav && 
-                             realtimeData.value.yesterdayNav && 
-                             realtimeData.value.yesterdayNav !== realtimeData.value.nav)
-
-  if (isOfficialUpdated) {
+  if (realtimeData.value.isSettled) {
     return ((currentNav - yesterdayNav) * shares).toFixed(2)
   } else {
     const rate = parseFloat(realtimeData.value.estimatedGrowthRate) || 0
@@ -246,9 +240,11 @@ const holdingPnlRate = computed(() => {
   return `${prefix}${rate.toFixed(2)}%`
 })
 
-const todayPnlClass = computed(() => {
-  const p = parseFloat(todayPnl.value) || 0
-  return p > 0 ? 'text-rise' : (p < 0 ? 'text-fall' : '')
+const latestPnlClass = computed(() => {
+  const p = parseFloat(latestPnl.value) || 0
+  if (p > 0) return 'text-rise'
+  if (p < 0) return 'text-fall'
+  return 'text-muted'
 })
 
 const holdingPnlClass = computed(() => {
@@ -294,8 +290,8 @@ const loadData = async () => {
 
     // Fetch Trend Data asynchronously
     fetchFundTrend(code).then(res => {
-      if (res && res.length) {
-        trendData.value = res
+      if (res && res.trend && res.trend.length) {
+        trendData.value = res.trend
       }
     }).catch(e => console.warn('Failed to fetch trend', e))
 
@@ -386,12 +382,9 @@ const tradeForm = ref({
 
 watch(() => tradeForm.value.tradeDate, (newDate) => {
   if (!newDate) return
-  const match = trendData.value.find(d => {
-    const dObj = new Date(d.x)
-    return `${dObj.getFullYear()}-${String(dObj.getMonth() + 1).padStart(2, '0')}-${String(dObj.getDate()).padStart(2, '0')}` === newDate
-  })
-  if (match && match.y) {
-    tradeForm.value.nav = match.y.toFixed(4)
+  const match = trendData.value.find(d => d.date === newDate)
+  if (match && match.value) {
+    tradeForm.value.nav = parseFloat(match.value).toFixed(4)
   } else if (newDate === getTodayString()) {
     tradeForm.value.nav = realtimeData.value?.estimatedNav || realtimeData.value?.nav || ''
   }
@@ -660,10 +653,32 @@ const onValuationSaved = () => {
 }
 
 .detail-content {
-  padding: 0 var(--space-lg) var(--space-2xl);
+  display: flex;
+  flex-direction: column;
+}
+.tab-pane-content {
+  padding: var(--space-md) var(--space-lg) calc(var(--space-2xl) + 80px);
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
+}
+
+.fixed-bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--color-bg);
+  padding: 12px var(--space-lg) calc(12px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+  z-index: 99;
+}
+.bottom-btn-group {
+  display: flex;
+  gap: 12px;
+}
+.flex-1 {
+  flex: 1;
 }
 
 .settings-btn-wrap {
@@ -724,56 +739,6 @@ const onValuationSaved = () => {
   font-weight: 600;
 }
 
-/* ── Holdings Section ── */
-.holdings-section {
-  padding: var(--space-lg);
-  margin-bottom: var(--space-xl);
-}
-.holding-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--space-sm) 0;
-  border-bottom: 1px solid var(--color-border);
-}
-.holding-item:last-child {
-  border-bottom: none;
-}
-.h-left {
-  flex: 1;
-}
-.h-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--color-text);
-  margin-bottom: 2px;
-}
-.h-code {
-  font-size: 11px;
-}
-.h-right {
-  width: 80px;
-  text-align: right;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-}
-.h-ratio {
-  font-size: 13px;
-  color: var(--color-text);
-}
-.h-bar-bg {
-  width: 100%;
-  height: 4px;
-  background: var(--color-border);
-  border-radius: 2px;
-  overflow: hidden;
-}
-.h-bar-fill {
-  height: 100%;
-  background: var(--color-accent);
-  border-radius: 2px;
-}
+
 </style>
 .readonly-field :deep(.van-field__control) { color: var(--color-text-muted); background-color: var(--color-bg-card-alt); cursor: not-allowed; }

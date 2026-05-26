@@ -11,7 +11,8 @@ class QuoteCacheTest {
 
     private val httpClient = HttpClient(OkHttp)
     private val stockClient = StockQuoteClient(httpClient)
-    private val cache = QuoteCache(stockClient)
+    private val quoteClient = QuoteClient(httpClient)
+    private val cache = QuoteCache(quoteClient, stockClient, org.mockito.kotlin.mock())
 
     @Test
     fun `getQuotes returns empty for empty input`() = runBlocking {

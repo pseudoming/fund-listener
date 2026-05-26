@@ -54,6 +54,9 @@ CREATE TABLE IF NOT EXISTS fund_valuation_snapshot (
     pe_percentile         TEXT,
     pb_percentile         TEXT,
     coverage_rate         TEXT,
+    report_date           TEXT,
+    total_ratio_covered   TEXT,
+    total_ratio           TEXT,
     created_at            INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_vs_fund_code ON fund_valuation_snapshot(fund_code);

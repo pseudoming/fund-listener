@@ -40,15 +40,16 @@ val appModule = module {
     single { StockQuoteClient(get()) }
     single { QuoteClient(get()) }
 
-    // Quote cache — wraps StockQuoteClient with TTL-based caching
-    single { QuoteCache(get()) }
+    // Quote cache — wraps StockQuoteClient with TTL-based caching and QuoteClient fallback
+    single { QuoteCache(get(), get(), get()) }
 
     // Services
-    single { CustomValuationEngine(get(), get(), get()) }
-    single { FundService(get(), get(), get()) }
+    single { CustomValuationEngine(get(), get(), get(), get()) }
+    single { FundService(get(), get(), get(), get()) }
     single { com.fundlistener.service.PositionService(get()) }
     single { com.fundlistener.service.ValuationService(get(), get(), get(), get()) }
-    single { com.fundlistener.service.DashboardService(get(), get()) }
+    single { com.fundlistener.service.DashboardService(get(), get(), get(), get()) }
+    single { com.fundlistener.service.ValuationDisplayNormalizer(get()) }
 
     // Event Bus — LogOnly 实现，Phase 8 替换为 Notification 实现
     single<com.fundlistener.service.ValuationEventBus> {

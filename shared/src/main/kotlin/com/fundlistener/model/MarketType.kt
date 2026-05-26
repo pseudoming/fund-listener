@@ -17,7 +17,8 @@ package com.fundlistener.model
 enum class MarketType(private val label: String) {
     A_SHARE("A股"),
     HK_STOCK("港股"),
-    US_STOCK("美股");
+    US_STOCK("美股"),
+    TW_STOCK("台股");
 
     companion object {
         /**
@@ -32,6 +33,8 @@ enum class MarketType(private val label: String) {
             return when {
                 // 含字母 → 美股
                 trimmed.any { it.isLetter() } -> US_STOCK
+                // 纯数字 4 位 → 台股
+                trimmed.length == 4 && trimmed.all { it.isDigit() } -> TW_STOCK
                 // 纯数字 5 位 → 港股
                 trimmed.length == 5 && trimmed.all { it.isDigit() } -> HK_STOCK
                 // 纯数字 6 位 → A 股
@@ -59,6 +62,7 @@ enum class MarketType(private val label: String) {
                 }
                 HK_STOCK -> "116.$code"
                 US_STOCK -> "105.$code"
+                TW_STOCK -> "UNKNOWN.$code" // 暂不支持台股实时行情获取
             }
         }
     }

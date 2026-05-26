@@ -57,3 +57,17 @@ export function updateValuationRules(code, rules) {
 export function fetchFundTrend(code) {
   return api.get(`/funds/${code}/trend`)
 }
+
+/**
+ * 获取账户底层股票穿透分析
+ */
+export function fetchPenetration() {
+  return api.get('/dashboard/penetration')
+}
+
+/**
+ * 获取整个个人账户的历史收益走势与最大回撤
+ */
+export function fetchDashboardTrend() {
+  return api.get('/dashboard/trend')
+}

@@ -53,7 +53,10 @@ const props = defineProps({
 const padding = 4
 
 const computedBounds = computed(() => {
-  const valid = props.points.filter(p => p != null && !isNaN(p))
+  // [FIX #2 背景说明]:
+  // 上游 ValuationDashboard 已通过 Forward-fill 保证了输入数组的纯净性，
+  // 此处直接使用即可，安全地移除了前人为了防止崩溃加的恶心 `isNaN(p)` 防御性补丁。
+  const valid = props.points
   if (valid.length === 0) return null
   let min = Math.min(...valid), max = Math.max(...valid)
   if (min === max) {
@@ -78,13 +81,12 @@ const pointsStr = computed(() => {
   const stepX = (props.width - padding * 2) / Math.max(props.points.length - 1, 1)
   return props.points
     .map((p, i) => {
-      if (p == null || isNaN(p)) return null
+      // 移除 isNaN(p)
       const x = padding + i * stepX
       const y = props.height - padding - (p - bounds.min) / bounds.range * (props.height - padding * 2)
-      if (isNaN(x) || isNaN(y)) return null
+      // 移除 isNaN(x) || isNaN(y) 的补丁
       return `${x.toFixed(1)},${y.toFixed(1)}`
     })
-    .filter(Boolean)
     .join(' ')
 })
 

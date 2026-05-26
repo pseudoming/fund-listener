@@ -12,7 +12,8 @@ import kotlinx.coroutines.launch
 class FundService(
     private val fundClient: TianTianFundClient,
     private val repository: FundRepository,
-    private val customValuationEngine: CustomValuationEngine
+    private val customValuationEngine: CustomValuationEngine,
+    private val normalizer: ValuationDisplayNormalizer
 ) {
 
     /**
@@ -159,7 +160,21 @@ class FundService(
             org.slf4j.LoggerFactory.getLogger(FundService::class.java).warn("Failed to update fund_metadata cache for {}", code, e)
         }
 
-        return finalEstimation
+        val meta = repository.getFundMetadata(code)
+        val copyEstimation = finalEstimation.copy(
+            type = meta?.fundType,
+            manager = meta?.fundManager
+        )
+        
+        val norm = normalizer.normalize(copyEstimation, meta)
+        
+        return copyEstimation.copy(
+            isSettled = norm.isSettled,
+            displayNavDate = norm.displayNavDate,
+            displayNav = norm.displayNav,
+            displayGrowthRate = norm.displayGrowthRate,
+            displayYesterdayNav = norm.displayYesterdayNav
+        )
     }
 
     private suspend fun upsertMetadataCache(code: String, estimation: FundEstimation) {
@@ -205,7 +220,11 @@ class FundService(
                                 com.fundlistener.model.StockMetadata(
                                     stockCode = it.stockCode,
                                     stockName = it.stockName,
-                                    marketType = "UNKNOWN", // 需要通过行情接口补充
+                                    marketType = try {
+                                        com.fundlistener.model.MarketType.classify(it.stockCode).toString()
+                                    } catch (e: Exception) {
+                                        "UNKNOWN"
+                                    },
                                     currentPrice = null,
                                     growthRate = null,
                                     updatedAt = System.currentTimeMillis()
@@ -294,12 +313,63 @@ class FundService(
     }
 
     /**
-     * 获取历史净值走势
+     * 获取历史净值走势，并计算最大回撤
      */
-    suspend fun getFundNavTrend(code: String): List<com.fundlistener.model.NavTrendItem> {
+    suspend fun getFundTrendAndDrawdown(code: String): com.fundlistener.model.TrendAndDrawdownResponse {
         require(code.isNotBlank()) { "Fund code must not be blank" }
-        return fundClient.fetchNavTrend(code)
+        val trendItems = fundClient.fetchNavTrend(code)
             ?: throw IllegalArgumentException("Failed to fetch nav trend for fund $code")
+
+        // 为单只基金保留足够多的数据，以支持 3年和全部 选项
+        val recentItems = trendItems.takeLast(1200)
+        
+        if (recentItems.isEmpty()) {
+            return com.fundlistener.model.TrendAndDrawdownResponse(emptyList(), "0.00", "", "", "0.00")
+        }
+
+        var peak = recentItems.first().y
+        var maxDrawdown = 0.0
+        var peakDate = recentItems.first().x
+        var mdStartDate = peakDate
+        var mdEndDate = peakDate
+
+        val trendPoints = recentItems.map { item ->
+            val dateStr = java.time.Instant.ofEpochMilli(item.x)
+                .atZone(java.time.ZoneId.of("Asia/Shanghai"))
+                .toLocalDate()
+                .toString()
+
+            if (item.y > peak) {
+                peak = item.y
+                peakDate = item.x
+            } else {
+                val drawdown = (peak - item.y) / peak
+                if (drawdown > maxDrawdown) {
+                    maxDrawdown = drawdown
+                    mdStartDate = peakDate
+                    mdEndDate = item.x
+                }
+            }
+
+            com.fundlistener.model.TrendPoint(dateStr, item.y.toString())
+        }
+
+        val firstVal = recentItems.first().y
+        val lastVal = recentItems.last().y
+        val totalReturn = if (firstVal > 0) ((lastVal - firstVal) / firstVal * 100) else 0.0
+
+        val fmtStart = java.time.Instant.ofEpochMilli(mdStartDate)
+            .atZone(java.time.ZoneId.of("Asia/Shanghai")).toLocalDate().toString()
+        val fmtEnd = java.time.Instant.ofEpochMilli(mdEndDate)
+            .atZone(java.time.ZoneId.of("Asia/Shanghai")).toLocalDate().toString()
+
+        return com.fundlistener.model.TrendAndDrawdownResponse(
+            trend = trendPoints,
+            maxDrawdown = (maxDrawdown * 100).toBigDecimal().setScale(2, java.math.RoundingMode.HALF_UP).toPlainString(),
+            maxDrawdownStartDate = fmtStart,
+            maxDrawdownEndDate = fmtEnd,
+            totalReturn = totalReturn.toBigDecimal().setScale(2, java.math.RoundingMode.HALF_UP).toPlainString()
+        )
     }
 }
 

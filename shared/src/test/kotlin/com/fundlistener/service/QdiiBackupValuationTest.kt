@@ -87,7 +87,7 @@ class QdiiBackupValuationTest {
     private val mockQuoteClient = object : QuoteClient(HttpClient(OkHttp)) {
         override suspend fun fetchQuotes(targets: List<Pair<String, String>>): Map<String, Quote> {
             if (targets.any { it.first == "QQQ" }) {
-                return mapOf("QQQ" to Quote("QQQ", "Invesco QQQ", BigDecimal("450.00"), BigDecimal("-2.50")))
+                return mapOf("QQQ" to Quote("QQQ", "Invesco QQQ", BigDecimal("450.00"), BigDecimal("-11.25"), BigDecimal("-2.50")))
             }
             return emptyMap()
         }
@@ -108,8 +108,8 @@ class QdiiBackupValuationTest {
         override suspend fun fetchNavTrend(code: String): List<NavTrendItem>? = emptyList()
     }
 
-    private val customEngine = CustomValuationEngine(mockRepository, mockQuoteClient, mockTianTianClient)
-    private val fundService = FundService(mockTianTianClient, mockRepository, customEngine)
+    private val customEngine = CustomValuationEngine(mockRepository, mockQuoteClient, org.mockito.kotlin.mock(), mockTianTianClient)
+    private val fundService = FundService(mockTianTianClient, mockRepository, customEngine, ValuationDisplayNormalizer(mockRepository))
 
     @Test
     fun `TestCase 1 and 2 - QDII missing estimation uses linked etf fallback with negative return`() = runBlocking {
@@ -127,11 +127,11 @@ class QdiiBackupValuationTest {
     fun `TestCase 3 - Precision test for extreme data`() = runBlocking {
         val quoteClientSmallDrop = object : QuoteClient(HttpClient(OkHttp)) {
             override suspend fun fetchQuotes(targets: List<Pair<String, String>>): Map<String, Quote> {
-                return mapOf("QQQ" to Quote("QQQ", "Invesco QQQ", BigDecimal("450.00"), BigDecimal("-0.01")))
+                return mapOf("QQQ" to Quote("QQQ", "Invesco QQQ", BigDecimal("450.00"), BigDecimal("-0.04"), BigDecimal("-0.01")))
             }
         }
-        val customEngineSmallDrop = CustomValuationEngine(mockRepository, quoteClientSmallDrop, mockTianTianClient)
-        val service = FundService(mockTianTianClient, mockRepository, customEngineSmallDrop)
+        val customEngineSmallDrop = CustomValuationEngine(mockRepository, quoteClientSmallDrop, org.mockito.kotlin.mock(), mockTianTianClient)
+        val service = FundService(mockTianTianClient, mockRepository, customEngineSmallDrop, ValuationDisplayNormalizer(mockRepository))
 
         val result = service.getRealtimeEstimation(baseFundCode)
         assertEquals("-0.01", result.estimatedGrowthRate)
@@ -145,8 +145,8 @@ class QdiiBackupValuationTest {
                 return emptyMap() 
             }
         }
-        val customEngineFail = CustomValuationEngine(mockRepository, quoteClientFail, mockTianTianClient)
-        val service = FundService(mockTianTianClient, mockRepository, customEngineFail)
+        val customEngineFail = CustomValuationEngine(mockRepository, quoteClientFail, org.mockito.kotlin.mock(), mockTianTianClient)
+        val service = FundService(mockTianTianClient, mockRepository, customEngineFail, ValuationDisplayNormalizer(mockRepository))
 
         val result = service.getRealtimeEstimation(baseFundCode)
         

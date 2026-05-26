@@ -48,9 +48,9 @@
         <div class="alipay-card-value font-mono">{{ formatNum(currentMarketValue) }}</div>
         <div class="alipay-card-grid">
           <div class="alipay-grid-item">
-            <div class="label">最新收益(元)</div>
-            <div class="val font-mono" :class="rateClass(todayPnl)">
-              {{ formatWithSign(todayPnl) }}
+            <div class="label">{{ getPnlLabel(data?.isSettled, data?.navDate) }}</div>
+            <div class="val font-mono" :class="rateClass(latestPnl)">
+              {{ formatWithSign(latestPnl) }}
             </div>
           </div>
           <div class="alipay-grid-item">
@@ -108,8 +108,8 @@
             </div>
           </div>
           <div class="pos-col">
-            <div class="label">{{ getPnlLabel(data) }}</div>
-            <div class="val font-mono" :class="rateClass(data.todayPnl)">
+            <div class="label">{{ getPnlLabel(data.isSettled, data.navDate) }}</div>
+            <div class="val font-mono" :class="rateClass(data.latestPnl)">
               {{ formatTodayPnl(data) }}
             </div>
           </div>
@@ -133,64 +133,72 @@
     </div>
 
     <!-- ==================== 自选模式 (Watchlist Style) ==================== -->
-    <div v-else-if="mode === 'watchlist'" class="fund-card card animate-in" :class="cardClass" @click="$emit('click')">
-      <!-- 取消自选按钮 -->
-      <button v-if="allowRemove" class="fund-card__remove-btn" @click.stop="$emit('remove')" title="取消自选">✕</button>
-      
-      <div class="fund-card__header" :class="{ 'has-remove-btn': allowRemove }">
-        <div class="fund-card__info">
-          <h2 class="fund-card__name">{{ data.name || data.fundName }}</h2>
-          <div class="fund-card__code-wrap" @click.stop="copyText(data.code || data.fundCode)" title="点击复制基金代码">
-            <span class="fund-card__code font-mono text-muted">{{ data.code || data.fundCode }}</span>
-            <span class="copy-btn-mini">📋</span>
-          </div>
-        </div>
-        <span class="tag" :class="tagClass">{{ trendIcon }} {{ directionLabel }}</span>
+    <div v-else-if="mode === 'watchlist'" class="fund-card card animate-in" 
+      :class="[cardClass, { 'edit-mode': isEditMode, 'is-selected': isSelected }]"
+      @click="$emit('click')"
+    >
+      <!-- 复选框容器 -->
+      <div class="pos-checkbox-container">
+        <div class="pos-checkbox" :class="{ 'is-active': isSelected }"></div>
       </div>
-
-      <div class="fund-card__body">
-        <div class="fund-card__rate-section">
-          <span class="fund-card__rate text-num" :class="rateClass(data.estimatedGrowthRate)">
-            {{ formatGrowthRate(data.estimatedGrowthRate) }}
-          </span>
-          <span class="fund-card__rate-label text-muted">{{ computedIsSettled ? '实际涨跌幅' : '估算涨跌幅' }}</span>
+      
+      <div class="fund-card__content-wrap">
+        
+        <div class="fund-card__header">
+          <div class="fund-card__info">
+            <h2 class="fund-card__name">{{ data.name || data.fundName }}</h2>
+            <div class="fund-card__code-wrap" @click.stop="copyText(data.code || data.fundCode)" title="点击复制基金代码">
+              <span class="fund-card__code font-mono text-muted">{{ data.code || data.fundCode }}</span>
+              <span class="copy-btn-mini">📋</span>
+            </div>
+          </div>
+          <span class="tag" :class="tagClass">{{ trendIcon }} {{ directionLabel }}</span>
         </div>
 
-        <div class="fund-card__nav-row">
-          <div class="fund-card__nav-item">
-            <span class="fund-card__nav-value text-num" :class="rateClass(data.estimatedGrowthRate)">
-              {{ data.estimatedNav }}
+        <div class="fund-card__body">
+          <div class="fund-card__rate-section">
+            <span class="fund-card__rate text-num" :class="rateClass(data.estimatedGrowthRate)">
+              {{ formatGrowthRate(data.estimatedGrowthRate) }}
             </span>
-            <span class="fund-card__nav-label text-muted">{{ computedIsSettled ? '最新净值' : '估算净值' }}</span>
+            <span class="fund-card__rate-label text-muted">{{ computedIsSettled ? '实际涨跌幅' : '估算涨跌幅' }}</span>
           </div>
-          <div class="fund-card__nav-divider"></div>
-          <div class="fund-card__nav-item">
-            <span class="fund-card__nav-value text-num">{{ data.nav }}</span>
-            <span class="fund-card__nav-label text-muted">上期净值</span>
-          </div>
-          
-          <template v-if="data.sinceAddedGrowthRate">
+
+          <div class="fund-card__nav-row">
+            <div class="fund-card__nav-item">
+              <span class="fund-card__nav-value text-num" :class="rateClass(data.estimatedGrowthRate)">
+                {{ data.estimatedNav }}
+              </span>
+              <span class="fund-card__nav-label text-muted">{{ computedIsSettled ? '最新净值' : '估算净值' }}</span>
+            </div>
             <div class="fund-card__nav-divider"></div>
             <div class="fund-card__nav-item">
-              <span class="fund-card__nav-value text-num" :class="rateClass(data.sinceAddedGrowthRate)">
-                {{ formatGrowthRate(data.sinceAddedGrowthRate) }}
-              </span>
-              <span class="fund-card__nav-label text-muted" style="white-space: nowrap">关注以来({{ data.addedDate ? data.addedDate.substring(5) : '' }})</span>
+              <span class="fund-card__nav-value text-num">{{ data.nav }}</span>
+              <span class="fund-card__nav-label text-muted">上期净值</span>
             </div>
-          </template>
+            
+            <template v-if="data.sinceAddedGrowthRate">
+              <div class="fund-card__nav-divider"></div>
+              <div class="fund-card__nav-item">
+                <span class="fund-card__nav-value text-num" :class="rateClass(data.sinceAddedGrowthRate)">
+                  {{ formatGrowthRate(data.sinceAddedGrowthRate) }}
+                </span>
+                <span class="fund-card__nav-label text-muted" style="white-space: nowrap">关注以来({{ data.addedDate ? data.addedDate.substring(5) : '' }})</span>
+              </div>
+            </template>
+          </div>
         </div>
-      </div>
 
-      <div class="fund-card__footer">
-        <span class="fund-card__time text-muted">{{ computedIsSettled ? '结算时间' : '估算时间' }} {{ data.estimationTime }}</span>
-        <span v-if="refreshing" class="fund-card__refreshing">
-          <span class="fund-card__dot"></span>刷新中
-        </span>
-      </div>
+        <div class="fund-card__footer">
+          <span class="fund-card__time text-muted">{{ computedIsSettled ? '结算时间' : '估算时间' }} {{ data.estimationTime }}</span>
+          <span v-if="refreshing" class="fund-card__refreshing">
+            <span class="fund-card__dot"></span>刷新中
+          </span>
+        </div>
 
-      <div class="fund-card__expand" @click.stop="$emit('toggle-holdings')">
-        <span class="fund-card__expand-label">走势与重仓</span>
-        <span class="fund-card__expand-chevron" :class="{ 'is-expanded': expanded }">▾</span>
+        <div class="fund-card__expand" @click.stop="$emit('toggle-holdings')">
+          <span class="fund-card__expand-label">走势与重仓</span>
+          <span class="fund-card__expand-chevron" :class="{ 'is-expanded': expanded }">▾</span>
+        </div>
       </div>
     </div>
   </template>
@@ -199,6 +207,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { getPnlLabel } from '../utils/formatters.js'
 import { showToast } from 'vant'
 
 const props = defineProps({
@@ -221,47 +230,31 @@ const props = defineProps({
   isWatchlist: { type: Boolean, default: false },
   hasPosition: { type: Boolean, default: false },
   currentMarketValue: { type: String, default: '0.00' },
-  todayPnl: { type: String, default: '0.00' },
+  latestPnl: { type: String, default: '0.00' },
   holdingPnl: { type: String, default: '0.00' },
   holdingPnlRate: { type: String, default: '0.00%' },
   currentNav: { type: String, default: '' },
   estimatedGrowthRate: { type: String, default: '0.00' },
   sinceAddedGrowthRate: { type: String, default: '' },
   estimationTime: { type: String, default: '' },
-  navDate: { type: String, default: '' }
+  navDate: { type: String, default: '' },
+  isSettled: { type: Boolean, default: false }
 })
 
 const emit = defineEmits(['retry', 'toggle-holdings', 'click', 'remove'])
 
 const computedIsSettled = computed(() => {
+  if (props.mode === 'detail') {
+    return props.isSettled
+  }
   if (props.data && typeof props.data.isSettled === 'boolean') {
     return props.data.isSettled
-  }
-  const nDate = props.navDate || props.data?.navDate
-  const eTime = props.estimationTime || props.data?.estimationTime
-  if (nDate && eTime) {
-    return nDate === eTime.substring(0, 10)
   }
   return false
 })
 
 const displayError = computed(() => {
   if (props.error) return props.error
-  if (props.mode === 'position' || (props.mode === 'detail' && props.hasPosition)) {
-    if (props.mode === 'detail') {
-      const val = parseFloat(props.currentMarketValue) || 0
-      if (val === 0) return '市值为0拦截: 底层份额网关数据未同步或净值熔断(为0)'
-    } else {
-      const pos = props.data || {}
-      const shares = parseFloat(pos.totalShares) || 0
-      const nav = parseFloat(pos.estimatedNav || pos.nav) || 0
-      if (shares * nav === 0) {
-        const reason = shares === 0 ? '底层份额网关数据未同步(为0)' : 'API盘中估值/基础净值熔断(为0)'
-        console.error(`[链路断点拦截] ${pos.fundCode || pos.code || '未知代码'} 持仓为0, 溯源 -> ${reason}`)
-        return `市值为0拦截: ${reason}`
-      }
-    }
-  }
   return null
 })
 
@@ -338,28 +331,14 @@ const formatAccumulatedPnl = (pos) => {
 }
 
 const formatTodayPnl = (pos) => {
-  if (!pos.todayPnl) return '--'
-  const pnl = parseFloat(pos.todayPnl)
+  if (!pos.latestPnl) return '--'
+  const pnl = parseFloat(pos.latestPnl)
   if (isNaN(pnl)) return '--'
   const prefix = pnl >= 0 ? '+' : ''
   return `${prefix}¥${pnl.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-const getPnlLabel = (pos) => {
-  if (!pos.isSettled) return '今日估算'
-  if (!pos.navDate) return '今日结算'
-  const today = new Date()
-  const navDate = new Date(pos.navDate)
-  const todayMs = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()
-  const navMs = new Date(navDate.getFullYear(), navDate.getMonth(), navDate.getDate()).getTime()
-  const diffDays = Math.round((todayMs - navMs) / (1000 * 60 * 60 * 24))
-  if (diffDays === 0) return '今日结算'
-  if (diffDays === 1) return '昨日结算'
-  if (diffDays === 2) return '前天结算'
-  const m = (navDate.getMonth() + 1).toString().padStart(2, '0')
-  const d = navDate.getDate().toString().padStart(2, '0')
-  return `${m}-${d} 结算`
-}
+
 
 const formatShares = (val) => {
   const n = parseFloat(val)
@@ -376,7 +355,9 @@ const formatCost = (val) => {
 
 <style scoped>
 /* ========== COMMON & WATCHLIST STYLES ========== */
-.fund-card { position: relative; overflow: hidden; display: flex; flex-direction: column; }
+.fund-card { position: relative; overflow: hidden; display: flex; flex-direction: row; align-items: stretch; transition: transform var(--duration-normal), box-shadow var(--duration-normal), border-color var(--duration-normal); padding: 0; }
+.fund-card.is-selected { border-color: var(--color-accent) !important; box-sizing: border-box; background: rgba(139, 90, 43, 0.02); }
+.fund-card__content-wrap { flex: 1; min-width: 0; padding: var(--space-lg); display: flex; flex-direction: column; position: relative; }
 .fund-card__header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-sm); transition: padding-right var(--duration-fast); }
 .fund-card__header.has-remove-btn { padding-right: var(--space-lg); }
 .fund-card__info { flex: 1; min-width: 0; }
@@ -434,7 +415,7 @@ const formatCost = (val) => {
 .pos-name { font-size: 16px; font-weight: 700; color: var(--color-text); letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .status-tag { position: absolute; top: 0; right: 0; font-size: 10px; padding: 4px 8px; border-bottom-left-radius: 8px; font-weight: 600; z-index: 2; }
 .status-estimating { background: rgba(255, 152, 0, 0.15); color: #ed6c02; }
-.status-settled { background: rgba(76, 175, 80, 0.15); color: #2e7d32; }
+.status-settled { background: rgba(25, 118, 210, 0.1); color: #1976d2; }
 .pos-badge { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
 .pos-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px; }
 .pos-grid--secondary { margin-bottom: 0; padding-top: 12px; border-top: 1px dashed var(--color-border); }
@@ -444,7 +425,7 @@ const formatCost = (val) => {
 .pos-col .val--primary { font-size: 15px; font-weight: 700; }
 
 .pos-checkbox-container { display: none; width: 44px; align-items: center; justify-content: center; background: rgba(0,0,0,0.01); border-right: 1px solid var(--color-border); transition: width var(--duration-normal); }
-.position-card.edit-mode .pos-checkbox-container { display: flex; }
+.position-card.edit-mode .pos-checkbox-container, .fund-card.edit-mode .pos-checkbox-container { display: flex; }
 .pos-checkbox { width: 20px; height: 20px; border-radius: 50%; border: 2px solid #b0b5bd; transition: all var(--duration-fast); position: relative; }
 .pos-checkbox.is-active { background: var(--color-accent); border-color: var(--color-accent); }
 .pos-checkbox.is-active::after { content: ''; position: absolute; top: 4px; left: 7px; width: 4px; height: 8px; border-right: 2px solid white; border-bottom: 2px solid white; transform: rotate(45deg); }

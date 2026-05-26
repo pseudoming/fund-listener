@@ -1,4 +1,7 @@
 #!/bin/bash
+# 显式加载 nvm 环境，避免非交互式 shell 丢失 PATH
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
 # 交付准入物理卡口
 echo "==================================="

@@ -122,7 +122,7 @@ open class TianTianFundClient(private val httpClient: HttpClient) {
                 response.readRawBytes().toString(Charsets.UTF_8)
             } ?: return null
             
-            val managerSearchKey = "var Data_fundManager ="
+            val managerSearchKey = "var Data_currentFundManager ="
             val mStartIdx = body.indexOf(managerSearchKey)
             if (mStartIdx == -1) return null
             val mStartJson = mStartIdx + managerSearchKey.length

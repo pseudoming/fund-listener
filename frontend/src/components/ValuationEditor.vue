@@ -1,9 +1,9 @@
 <template>
   <div class="valuation-editor card">
     <div class="editor-header">
-      <h3>Valuation Settings</h3>
+      <h3>自定义估值设置</h3>
       <div class="sum-badge" :class="{ 'is-valid': totalWeight === 100 }">
-        Sum: {{ totalWeight }}%
+        总权重: {{ totalWeight }}%
       </div>
     </div>
 
@@ -13,34 +13,34 @@
           <div class="rule-row">
             <van-field
               v-model="rule.type"
-              label="Type"
+              label="类型"
               is-link
               readonly
               @click="showTypePicker(index)"
             />
             <van-field
               v-model="rule.targetCode"
-              label="Target Code"
-              placeholder="e.g. sh000300"
+              label="标的代码"
+              placeholder="例如: sh000300 或 NVDA"
             />
           </div>
           <div class="rule-row align-center">
             <div class="weight-control">
-              <span class="label">Weight (%)</span>
+              <span class="label">权重 (%)</span>
               <van-stepper v-model="rule.weight" :min="0" :max="100" />
             </div>
             <van-button type="danger" size="small" icon="delete" @click="removeRule(index)" plain round />
           </div>
         </div>
-        <van-empty v-if="rules.length === 0" description="No components added" image-size="60" />
+        <van-empty v-if="rules.length === 0" description="暂未添加估值标的" image-size="60" />
       </div>
 
       <div class="actions">
         <van-button type="default" plain block icon="plus" @click="addRule">
-          Add Component
+          添加标的
         </van-button>
         <van-button type="primary" block @click="saveRules" :loading="saving" :disabled="totalWeight !== 100">
-          Save Settings
+          保存规则
         </van-button>
       </div>
     </van-skeleton>

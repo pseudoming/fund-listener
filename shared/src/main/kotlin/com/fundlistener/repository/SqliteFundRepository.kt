@@ -202,8 +202,9 @@ class SqliteFundRepository(private val db: DatabaseFactory) : FundRepository {
         val sql = """
             INSERT INTO fund_valuation_snapshot
                 (fund_code, snapshot_time, estimated_nav, estimated_growth_rate,
-                 weighted_pe, weighted_pb, pe_percentile, pb_percentile, coverage_rate, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 weighted_pe, weighted_pb, pe_percentile, pb_percentile, coverage_rate,
+                 report_date, total_ratio_covered, total_ratio, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """.trimIndent()
         conn.prepareStatement(sql).use { stmt ->
             stmt.setString(1, snapshot.fundCode)
@@ -215,7 +216,10 @@ class SqliteFundRepository(private val db: DatabaseFactory) : FundRepository {
             stmt.setString(7, snapshot.pePercentile?.toPlainString())
             stmt.setString(8, snapshot.pbPercentile?.toPlainString())
             stmt.setString(9, snapshot.coverageRate?.toPlainString())
-            stmt.setLong(10, snapshot.createdAt)
+            stmt.setString(10, snapshot.reportDate)
+            stmt.setString(11, snapshot.totalRatioCovered?.toPlainString())
+            stmt.setString(12, snapshot.totalRatio?.toPlainString())
+            stmt.setLong(13, snapshot.createdAt)
             stmt.executeUpdate()
         }
     }
@@ -303,6 +307,9 @@ class SqliteFundRepository(private val db: DatabaseFactory) : FundRepository {
         pePercentile = getString("pe_percentile")?.let { BigDecimal(it) },
         pbPercentile = getString("pb_percentile")?.let { BigDecimal(it) },
         coverageRate = getString("coverage_rate")?.let { BigDecimal(it) },
+        reportDate = getString("report_date"),
+        totalRatioCovered = getString("total_ratio_covered")?.let { BigDecimal(it) },
+        totalRatio = getString("total_ratio")?.let { BigDecimal(it) },
         createdAt = getLong("created_at")
     )
 
@@ -606,9 +613,9 @@ class SqliteFundRepository(private val db: DatabaseFactory) : FundRepository {
             ON CONFLICT(stock_code) DO UPDATE SET
                 stock_name = excluded.stock_name,
                 market_type = excluded.market_type,
-                current_price = excluded.current_price,
-                growth_rate = excluded.growth_rate,
-                updated_at = excluded.updated_at
+                current_price = COALESCE(excluded.current_price, stock_metadata.current_price),
+                growth_rate = COALESCE(excluded.growth_rate, stock_metadata.growth_rate),
+                updated_at = COALESCE(excluded.updated_at, stock_metadata.updated_at)
         """.trimIndent()
         conn.prepareStatement(sql).use { stmt ->
             stmt.setString(1, metadata.stockCode)

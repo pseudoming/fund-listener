@@ -27,6 +27,32 @@ const routes = [
     meta: { title: '基金明细' }
   },
   {
+    path: '/portfolio-analysis',
+    name: 'PortfolioAnalysis',
+    component: () => import('../views/PortfolioAnalysis.vue'),
+    meta: { title: '持仓分析' }
+  },
+  {
+    path: '/mock-dashboard',
+    name: 'MockDashboard',
+    component: () => import('../views/mock/MockDashboard.vue')
+  },
+  {
+    path: '/mock-watchlist',
+    name: 'MockWatchlist',
+    component: () => import('../views/mock/MockWatchlist.vue')
+  },
+  {
+    path: '/mock-fund-detail',
+    name: 'MockFundDetail',
+    component: () => import('../views/mock/MockFundDetail.vue')
+  },
+  {
+    path: '/mock-portfolio-analysis',
+    name: 'MockPortfolioAnalysis',
+    component: () => import('../views/mock/MockPortfolioAnalysis.vue')
+  },
+  {
     path: '/settings',
     name: 'Settings',
     component: () => import('../views/Settings.vue'),

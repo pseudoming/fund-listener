@@ -76,6 +76,9 @@ data class ValuationSnapshot(
     val pePercentile: BigDecimal? = null,
     val pbPercentile: BigDecimal? = null,
     val coverageRate: BigDecimal? = null,
+    val reportDate: String? = null,
+    val totalRatioCovered: BigDecimal? = null,
+    val totalRatio: BigDecimal? = null,
     val createdAt: Long
 )
 

@@ -17,6 +17,7 @@ open class QuoteClient(private val httpClient: HttpClient) {
         val code: String,
         val name: String,
         val price: BigDecimal,
+        val changeAmount: BigDecimal,
         val changePercent: BigDecimal
     )
 
@@ -64,12 +65,14 @@ open class QuoteClient(private val httpClient: HttpClient) {
             val name = fields[1]
             val code = fields[2]
             val price = fields[3].toBigDecimalOrNull() ?: BigDecimal.ZERO
-            val changePercent = fields[31].toBigDecimalOrNull() ?: BigDecimal.ZERO
+            val changeAmount = if (fields.size > 31) fields[31].toBigDecimalOrNull() ?: BigDecimal.ZERO else BigDecimal.ZERO
+            val changePercent = if (fields.size > 32) fields[32].toBigDecimalOrNull() ?: BigDecimal.ZERO else BigDecimal.ZERO
 
             val quote = Quote(
                 code = code,
                 name = name,
                 price = price,
+                changeAmount = changeAmount,
                 changePercent = changePercent
             )
             result[code] = quote
@@ -81,21 +84,26 @@ open class QuoteClient(private val httpClient: HttpClient) {
     }
 
     fun formatTencentCode(targetCode: String, componentType: String): String {
-        val trimmed = targetCode.trim().lowercase()
-        if (trimmed.startsWith("sh") || trimmed.startsWith("sz")) {
+        val trimmed = targetCode.trim()
+        val lower = trimmed.lowercase()
+        if (lower.startsWith("sh") || lower.startsWith("sz") || lower.startsWith("us") || lower.startsWith("hk")) {
             return trimmed
         }
-        return if (componentType.equals("INDEX", ignoreCase = true)) {
-            when {
-                trimmed.startsWith("399") -> "sz$trimmed"
-                trimmed.startsWith("000") || trimmed.startsWith("00") -> "sh$trimmed"
-                else -> "sh$trimmed"
-            }
-        } else {
-            when {
-                trimmed.startsWith("6") -> "sh$trimmed"
-                trimmed.startsWith("0") || trimmed.startsWith("3") -> "sz$trimmed"
-                else -> "sh$trimmed"
+        val market = try {
+            com.fundlistener.model.MarketType.classify(trimmed)
+        } catch (e: Exception) {
+            com.fundlistener.model.MarketType.A_SHARE
+        }
+        return when (market) {
+            com.fundlistener.model.MarketType.US_STOCK -> "us${trimmed.uppercase()}"
+            com.fundlistener.model.MarketType.HK_STOCK -> "hk$trimmed"
+            com.fundlistener.model.MarketType.TW_STOCK -> "tw$trimmed"
+            com.fundlistener.model.MarketType.A_SHARE -> {
+                when {
+                    trimmed.startsWith("6") || trimmed.startsWith("5") -> "sh$trimmed"
+                    trimmed.startsWith("0") || trimmed.startsWith("3") || trimmed.startsWith("1") -> "sz$trimmed"
+                    else -> "sh$trimmed"
+                }
             }
         }
     }

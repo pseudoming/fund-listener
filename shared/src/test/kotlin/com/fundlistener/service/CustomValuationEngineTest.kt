@@ -75,15 +75,15 @@ class CustomValuationEngineTest {
     private val mockQuoteClient = object : QuoteClient(HttpClient(OkHttp)) {
         override suspend fun fetchQuotes(targets: List<Pair<String, String>>): Map<String, Quote> {
             return mapOf(
-                "000858" to Quote("000858", "五粮液", BigDecimal("180.00"), BigDecimal("2.50")), // +2.50%
-                "000300" to Quote("000300", "沪深300", BigDecimal("3950.00"), BigDecimal("-1.00")) // -1.00%
+                "000858" to Quote("000858", "五粮液", BigDecimal("180.00"), BigDecimal("4.50"), BigDecimal("2.50")), // +2.50%
+                "000300" to Quote("000300", "沪深300", BigDecimal("3950.00"), BigDecimal("-39.50"), BigDecimal("-1.00")) // -1.00%
             )
         }
     }
 
     private val mockTianTianClient = TianTianFundClient(HttpClient(OkHttp))
 
-    private val engine = CustomValuationEngine(mockRepository, mockQuoteClient, mockTianTianClient)
+    private val engine = CustomValuationEngine(mockRepository, mockQuoteClient, org.mockito.kotlin.mock(), mockTianTianClient)
 
     @Test
     fun `estimate should compute weighted valuation correctly`() = kotlinx.coroutines.runBlocking {

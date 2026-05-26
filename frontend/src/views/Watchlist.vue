@@ -27,24 +27,45 @@
       <template v-if="hasSearched">
         <TransitionGroup name="list" tag="div" class="app__cards">
           <template v-for="fund in funds" :key="fund.code">
-            <FundCard
+            <WatchlistCard
               :data="fund.data"
-              :loading="fund.loading"
-              :error="fund.error"
-              :refreshing="fund.refreshing"
-              :expanded="expandedCode === fund.code"
-              allow-remove
-              @remove="removeFromWatchlist(fund.code)"
-              @retry="refreshFund(fund.code)"
-              @toggle-holdings="toggleHoldings(fund.code)"
-              @click="goToDetail(fund.code, fund)"
+              :is-edit-mode="isEditMode"
+              :is-selected="selectedCodes.includes(fund.code)"
+              @click="handleCardClick(fund)"
             />
             <div v-if="expandedCode === fund.code" class="app__expanded-panel">
-              <FundTrendChart :code="fund.code" />
+              <TrendChart :code="fund.code" />
               <HoldingsPanel :fund-code="fund.code" />
             </div>
           </template>
         </TransitionGroup>
+
+        <!-- 底部批量管理区 -->
+        <div class="list-footer-batch-container">
+          <div v-if="!isEditMode" class="batch-manage-trigger-row animate-in">
+            <button class="btn btn--outline btn-batch-manage" @click="toggleEditMode">
+              ⚙️ 批量管理自选
+            </button>
+          </div>
+          <div v-else class="batch-manage-panel card glass-panel animate-in">
+            <div class="panel-header-row">
+              <div class="panel-select-all" @click="toggleSelectAll">
+                <div class="pos-checkbox" :class="{ 'is-active': isAllSelected }"></div>
+                <span class="panel-select-label font-medium">全选 ({{ selectedCodes.length }} / {{ funds.length }})</span>
+              </div>
+              <button class="btn btn--secondary btn-mini" @click="toggleEditMode">取消</button>
+            </div>
+            <div class="panel-action-row">
+              <button 
+                class="btn btn--danger btn-batch-delete-inline" 
+                :disabled="selectedCodes.length === 0"
+                @click="confirmBatchDelete"
+              >
+                取消自选 ({{ selectedCodes.length }}只)
+              </button>
+            </div>
+          </div>
+        </div>
       </template>
 
       <!-- 空状态 -->
@@ -74,17 +95,20 @@ const globalExpandedCode = ref(null)
 import { computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import FundSearch from '../components/FundSearch.vue'
-import FundCard from '../components/FundCard.vue'
+import WatchlistCard from '../components/WatchlistCard.vue'
 import HoldingsPanel from '../components/HoldingsPanel.vue'
-import FundTrendChart from '../components/FundTrendChart.vue'
+import TrendChart from '../components/TrendChart.vue'
 import { fetchFundRealtime, fetchDashboard } from '../api/fund'
 import api from '../api/index'
-import { showToast } from 'vant'
+import { showToast, showConfirmDialog } from 'vant'
 
 const router = useRouter()
 const funds = globalFunds
 const hasSearched = globalHasSearched
 const expandedCode = globalExpandedCode
+
+const isEditMode = ref(false)
+const selectedCodes = ref([])
 
 // ── Market status ──────────────────────────────────────────────────
 
@@ -306,6 +330,77 @@ function goToDetail(code, item = null) {
   })
 }
 
+const toggleEditMode = () => {
+  isEditMode.value = !isEditMode.value
+  if (!isEditMode.value) {
+    selectedCodes.value = []
+  }
+}
+
+const toggleSelectAll = () => {
+  if (isAllSelected.value) {
+    selectedCodes.value = []
+  } else {
+    selectedCodes.value = funds.map(f => f.code)
+  }
+}
+
+const isAllSelected = computed(() => {
+  return funds.length > 0 && selectedCodes.value.length === funds.length
+})
+
+const handleCardClick = (fund) => {
+  if (isEditMode.value) {
+    const idx = selectedCodes.value.indexOf(fund.code)
+    if (idx >= 0) {
+      selectedCodes.value.splice(idx, 1)
+    } else {
+      selectedCodes.value.push(fund.code)
+    }
+  } else {
+    goToDetail(fund.code, fund.data)
+  }
+}
+
+const confirmBatchDelete = () => {
+  if (selectedCodes.value.length === 0) return
+  
+  showConfirmDialog({
+    title: '批量取消自选',
+    message: `确定要取消自选这 ${selectedCodes.value.length} 个基金吗？`,
+  }).then(async () => {
+    let failCount = 0
+    let lastFailMsg = ''
+    for (const code of selectedCodes.value) {
+      try {
+        await api.delete(`/watchlist/${code}`)
+        const idx = funds.findIndex(f => f.code === code)
+        if (idx >= 0) {
+          if (funds[idx].timer) clearInterval(funds[idx].timer)
+          funds.splice(idx, 1)
+        }
+      } catch (e) {
+        failCount++
+        lastFailMsg = e.message
+      }
+    }
+    
+    if (funds.length === 0) {
+      hasSearched.value = false
+      expandedCode.value = null
+    }
+    
+    isEditMode.value = false
+    selectedCodes.value = []
+
+    if (failCount > 0) {
+      showToast(lastFailMsg || `其中 ${failCount} 只基金无法取消自选(可能是因为有持仓)`)
+    } else {
+      showToast('批量取消自选成功')
+    }
+  }).catch(() => {})
+}
+
 /** 自动刷新 — 30s */
 function startPolling(fund) {
   if (fund.timer) clearInterval(fund.timer)
@@ -314,22 +409,6 @@ function startPolling(fund) {
 </script>
 
 <style scoped>
-.app__content {
-  padding: 0 var(--space-lg);
-  padding-bottom: var(--space-2xl);
-}
-
-.search-wrap {
-  padding: var(--space-md) var(--space-lg);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: rgba(250, 246, 240, 0.95);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.03);
-  margin-bottom: var(--space-sm);
-}
 
 .dashboard-wrap {
   padding: 0 var(--space-lg);
@@ -355,29 +434,6 @@ function startPolling(fund) {
 }
 
 /* 空状态 */
-.app__empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px var(--space-lg);
-  margin-top: var(--space-xl);
-  text-align: center;
-  border-radius: var(--radius-xl);
-}
-
-.app__empty-icon {
-  font-size: 56px;
-  margin-bottom: var(--space-md);
-  opacity: 0.9;
-}
-
-.app__empty-text {
-  font-size: 15px;
-  color: var(--color-text-secondary);
-  margin-bottom: var(--space-xl);
-  font-weight: 500;
-}
 
 .app__empty-hint {
   display: flex;
@@ -448,4 +504,24 @@ function startPolling(fund) {
 .list-move {
   transition: transform var(--duration-normal) var(--ease-spring);
 }
+
+/* 底部批量管理区 */
+.list-footer-batch-container {
+  margin-top: var(--space-md);
+  margin-bottom: var(--space-lg);
+  padding: 0 var(--space-xs);
+}
+.batch-manage-trigger-row { display: flex; justify-content: center; align-items: center; }
+.btn-batch-manage { border-radius: 20px; padding: 8px 24px; font-size: 13px; font-weight: 600; color: var(--color-text-secondary); border-color: var(--color-border); background: var(--color-bg-card-alt); transition: all var(--duration-fast); }
+.btn-batch-manage:hover { border-color: var(--color-accent); background: var(--color-accent-soft); color: var(--color-accent); }
+.batch-manage-panel { padding: var(--space-md); border-radius: var(--radius-lg); border: 1px dashed var(--color-border); background: var(--color-bg-card-alt); }
+.panel-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-md); }
+.panel-select-all { display: flex; align-items: center; gap: var(--space-sm); cursor: pointer; user-select: none; }
+.pos-checkbox { width: 20px; height: 20px; border-radius: 50%; border: 2px solid #b0b5bd; transition: all var(--duration-fast); position: relative; }
+.pos-checkbox.is-active { background: var(--color-accent); border-color: var(--color-accent); }
+.pos-checkbox.is-active::after { content: ''; position: absolute; top: 4px; left: 7px; width: 4px; height: 8px; border-right: 2px solid white; border-bottom: 2px solid white; transform: rotate(45deg); }
+.panel-select-label { font-size: 13px; color: var(--color-text); }
+.btn-mini { padding: 4px 12px; font-size: 12px; border-radius: 12px; height: 26px; }
+.panel-action-row { display: flex; justify-content: center; }
+.btn-batch-delete-inline { width: 100%; border-radius: var(--radius-md); padding: 10px 0; font-size: 13px; font-weight: 700; }
 </style>

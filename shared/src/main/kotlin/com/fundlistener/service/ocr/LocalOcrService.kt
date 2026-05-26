@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import kotlin.math.max
 import kotlin.math.min
+import kotlinx.coroutines.sync.withLock
 
 /**
  * 本地 OCR 服务实现 — 使用 RapidOCR-Java (ONNX 引擎) 进行纯本地文字识别，
@@ -26,6 +27,9 @@ class LocalOcrService(
         InferenceEngine.getInstance(Model.ONNX_PPOCR_V4)
     }
 
+    // 互斥锁，保证 native 引擎的并发安全
+    private val ocrMutex = kotlinx.coroutines.sync.Mutex()
+
     override suspend fun recognize(imageBytes: ByteArray, hint: String?, tradeDate: String?): OcrResult {
         logger.info("LocalOcrService: processing image ({} bytes) using local RapidOCR", imageBytes.size)
 
@@ -33,25 +37,28 @@ class LocalOcrService(
         val tempFile = File.createTempFile("ocr_input_", ".png")
         try {
             try {
-                val byteStream = java.io.ByteArrayInputStream(imageBytes)
-                val bufferedImage = javax.imageio.ImageIO.read(byteStream)
-                if (bufferedImage != null) {
-                    val rgbImage = java.awt.image.BufferedImage(
-                        bufferedImage.width,
-                        bufferedImage.height,
-                        java.awt.image.BufferedImage.TYPE_3BYTE_BGR
-                    )
-                    val g2d = rgbImage.createGraphics()
-                    g2d.drawImage(bufferedImage, 0, 0, null)
-                    g2d.dispose()
-                    javax.imageio.ImageIO.write(rgbImage, "png", tempFile)
-                } else {
-                    logger.error("Failed to read image (bufferedImage is null). Aborting OCR to prevent native JVM crash.")
-                    return OcrResult(rawText = "", extractedFields = emptyList(), confidence = 0.0)
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    val byteStream = java.io.ByteArrayInputStream(imageBytes)
+                    val bufferedImage = javax.imageio.ImageIO.read(byteStream)
+                    if (bufferedImage != null) {
+                        val rgbImage = java.awt.image.BufferedImage(
+                            bufferedImage.width,
+                            bufferedImage.height,
+                            java.awt.image.BufferedImage.TYPE_3BYTE_BGR
+                        )
+                        val g2d = rgbImage.createGraphics()
+                        g2d.drawImage(bufferedImage, 0, 0, null)
+                        g2d.dispose()
+                        javax.imageio.ImageIO.write(rgbImage, "png", tempFile)
+                    } else {
+                        throw IllegalStateException("bufferedImage is null")
+                    }
                 }
             } catch (e: Exception) {
                 logger.warn("Failed to preprocess image to TYPE_3BYTE_BGR, writing raw bytes directly", e)
-                tempFile.writeBytes(imageBytes)
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    tempFile.writeBytes(imageBytes)
+                }
             }
 
             val paramConfig = ParamConfig.getDefaultConfig().apply {
@@ -59,7 +66,11 @@ class LocalOcrService(
                 isMostAngle = true
             }
 
-            val ocrResult = engine.runOcr(tempFile.absolutePath, paramConfig)
+            val ocrResult = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                ocrMutex.withLock {
+                    engine.runOcr(tempFile.absolutePath, paramConfig)
+                }
+            }
             val textBlocks = ocrResult.textBlocks ?: emptyList()
 
             // 运行算法 B: Y轴 IoU 物理聚类

@@ -81,7 +81,8 @@ import { fetchFundHoldings } from '../api/fund'
 import { showToast } from 'vant'
 
 const props = defineProps({
-  fundCode: { type: String, required: true }
+  fundCode: { type: String, required: true },
+  preloadedData: { type: Object, default: null }
 })
 
 const loading = ref(false)
@@ -101,6 +102,10 @@ const totalRatio = computed(() => {
 })
 
 async function load() {
+  if (props.preloadedData) {
+    data.value = props.preloadedData
+    return
+  }
   loading.value = true
   error.value = null
   try {
@@ -157,6 +162,14 @@ onMounted(() => {
 watch(() => props.fundCode, () => {
   if (props.fundCode) load()
 })
+
+watch(() => props.preloadedData, (newVal) => {
+  if (newVal) {
+    data.value = newVal
+  } else if (props.fundCode) {
+    load()
+  }
+}, { deep: true })
 </script>
 
 <style scoped>

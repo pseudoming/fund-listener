@@ -89,24 +89,36 @@ class PositionService(private val repository: FundRepository) {
         )
         repository.insertTransaction(tx)
 
-        // 2. 更新持仓
+        // 2. 更新或删除持仓
         // 卖出时成本按比例扣减：卖出成本 = 卖出份额 * 平均成本净值
         // 这样可以确保卖出后剩余份额的 avgCostNav 不变
         val costReduction = sellShares.multiply(existing.avgCostNav)
         val newTotalShares = existing.totalShares.subtract(sellShares)
-        val newTotalCost = if (newTotalShares.compareTo(BigDecimal.ZERO) <= 0) {
-            BigDecimal.ZERO // 全部卖出后成本归零
+        
+        if (newTotalShares.compareTo(BigDecimal.ZERO) <= 0) {
+            // [FIX #3 背景说明]:
+            // 之前全额卖出后，代码仅仅将 totalShares 置为 0 并保留记录，
+            // 导致前端 Dashboard 拉取到 0 份额持仓后，会触发 "市值为0拦截" 的暴力错误边界。
+            // 这里修改为：当份额 <= 0 时，判定为真实清仓，直接物理删除该持仓。
+            // （交易流水已经通过 insertTransaction 保存，不会丢失历史对账记录）
+            repository.deletePosition(fundCode)
+            
+            val position = existing.copy(
+                totalShares = BigDecimal.ZERO,
+                totalCost = BigDecimal.ZERO,
+                updatedAt = now
+            )
+            return position.toResponse()
         } else {
-            existing.totalCost.subtract(costReduction)
+            val newTotalCost = existing.totalCost.subtract(costReduction)
+            val position = existing.copy(
+                totalShares = newTotalShares,
+                totalCost = newTotalCost,
+                updatedAt = now
+            )
+            repository.upsertPosition(position)
+            return position.toResponse()
         }
-
-        val position = existing.copy(
-            totalShares = newTotalShares,
-            totalCost = newTotalCost,
-            updatedAt = now
-        )
-        repository.upsertPosition(position)
-        return position.toResponse()
     }
 
     suspend fun deletePosition(fundCode: String) {

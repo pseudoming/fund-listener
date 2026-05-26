@@ -65,6 +65,12 @@ class StockQuoteClient(private val httpClient: HttpClient) {
 
         if (secIds.isEmpty()) return emptyList()
 
+        return fetchQuotesBySecIds(secIds, codeToMarket)
+    }
+
+    private suspend fun fetchQuotesBySecIds(secIds: List<String>, codeToMarket: Map<String, MarketType>): List<StockQuote> {
+        if (secIds.isEmpty()) return emptyList()
+
         return try {
             val body = RetryPolicy.STANDARD.execute {
                 val response: HttpResponse = httpClient.get(PUSH2_URL) {
@@ -82,7 +88,7 @@ class StockQuoteClient(private val httpClient: HttpClient) {
             } ?: return emptyList()
             parseQuotes(body, codeToMarket)
         } catch (e: Exception) {
-            logger.error("Failed to fetch stock quotes for ${codes.size} stocks", e)
+            logger.error("Failed to fetch stock quotes for ${secIds.size} secids", e)
             emptyList()
         }
     }
@@ -95,8 +101,29 @@ class StockQuoteClient(private val httpClient: HttpClient) {
      * 目前先留 TODO，S09 根据实际测试决定是否需要启用此方法。
      */
     suspend fun fetchQuotesWithFallback(codes: List<String>): List<StockQuote> {
-        // TODO: Phase 4 上线前根据实测确定是否需要两遍查询
-        return fetchQuotes(codes)
+        val initialResults = fetchQuotes(codes)
+        val initialCodes = initialResults.map { it.code }.toSet()
+
+        val missingUsCodes = codes.map { it.trim() }
+            .filter { it !in initialCodes }
+            .filter { 
+                try {
+                    MarketType.classify(it) == MarketType.US_STOCK
+                } catch (e: Exception) {
+                    false
+                }
+            }
+
+        if (missingUsCodes.isEmpty()) {
+            return initialResults
+        }
+
+        val codeToMarket = missingUsCodes.associateWith { MarketType.US_STOCK }
+        val fallbackSecIds = missingUsCodes.map { "106.$it" }
+        
+        val fallbackResults = fetchQuotesBySecIds(fallbackSecIds, codeToMarket)
+        
+        return initialResults + fallbackResults
     }
 
     internal fun parseQuotes(

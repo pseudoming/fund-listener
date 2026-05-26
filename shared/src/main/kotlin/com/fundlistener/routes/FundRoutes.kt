@@ -9,6 +9,9 @@ import com.fundlistener.service.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import org.koin.ktor.ext.inject
 import java.math.BigDecimal
 
@@ -18,6 +21,7 @@ fun Route.fundRoutes() {
     val valuationService by inject<ValuationService>()
     val repository by inject<FundRepository>()
     val dashboardService by inject<DashboardService>()
+    val normalizer by inject<ValuationDisplayNormalizer>()
 
     route("/api/funds") {
         /**
@@ -48,7 +52,7 @@ fun Route.fundRoutes() {
         get("/{code}/trend") {
             val code = call.parameters["code"]
                 ?: throw IllegalArgumentException("Fund code is required")
-            val trend = fundService.getFundNavTrend(code)
+            val trend = fundService.getFundTrendAndDrawdown(code)
             call.respond(trend)
         }
 
@@ -107,12 +111,52 @@ fun Route.fundRoutes() {
 
     /**
      * GET /api/valuation/{code}
-     * 穿透估值：获取基金加权估值、PE/PB 百分位、覆盖度。
+     * 穿透估值：获取最新快照（加权估值、覆盖度）。不再同步硬算。
      */
+    @OptIn(DelicateCoroutinesApi::class)
     get("/api/valuation/{code}") {
         val code = call.parameters["code"]
             ?: throw IllegalArgumentException("Fund code is required")
-        val result = valuationService.evaluate(code)
+        
+        val snapshot = repository.getLatestSnapshot(code)
+        
+        if (snapshot == null) {
+            // 后台异步触发计算，前端立即返回空状态兜底
+            kotlinx.coroutines.GlobalScope.launch {
+                try {
+                    valuationService.evaluate(code)
+                } catch (e: Exception) {
+                    // Ignore
+                }
+            }
+            val emptyResult = ValuationResult(
+                fundCode = code,
+                reportDate = "正在积累",
+                weightedChangePercent = null,
+                weightedPE = null,
+                weightedPB = null,
+                coveragePercent = "0.00",
+                totalRatioCovered = "0.00",
+                totalRatio = "0.00",
+                missingCount = 0,
+                stockDetails = emptyList()
+            )
+            call.respond(io.ktor.http.HttpStatusCode.Accepted, emptyResult)
+            return@get
+        }
+
+        val result = ValuationResult(
+            fundCode = code,
+            reportDate = snapshot.reportDate ?: "",
+            weightedChangePercent = null, // 前端未在估值卡片使用
+            weightedPE = snapshot.weightedPe?.toPlainString(),
+            weightedPB = snapshot.weightedPb?.toPlainString(),
+            coveragePercent = snapshot.coverageRate?.toPlainString() ?: "0.00",
+            totalRatioCovered = snapshot.totalRatioCovered?.toPlainString() ?: "0.00",
+            totalRatio = snapshot.totalRatio?.toPlainString() ?: "0.00",
+            missingCount = 0,
+            stockDetails = emptyList()
+        )
         call.respond(result)
     }
 
@@ -185,6 +229,24 @@ fun Route.fundRoutes() {
         call.respond(dashboard)
     }
 
+    /**
+     * GET /api/dashboard/penetration
+     * 整个个人账户的底层股票穿透分析。
+     */
+    get("/api/dashboard/penetration") {
+        val penetration = dashboardService.getPortfolioPenetration()
+        call.respond(penetration)
+    }
+
+    /**
+     * GET /api/dashboard/trend
+     * 整个个人账户的整体历史收益走势与最大回撤
+     */
+    get("/api/dashboard/trend") {
+        val trend = dashboardService.getPortfolioTrend()
+        call.respond(trend)
+    }
+
     // ═══════════════════════════════════════════
     //  自选 API
     // ═══════════════════════════════════════════
@@ -207,17 +269,13 @@ fun Route.fundRoutes() {
                     }
                 } catch (_: Exception) { null }
                 
+                // 获取实时的 normalized 估值数据
+                val est = try {
+                    fundService.getRealtimeEstimation(code)
+                } catch (_: Exception) { null }
+                
                 var latestNavRecord = repository.getLatestNav(code)
                 var latestSnapshot = repository.getLatestSnapshot(code)
-                
-                // 如果本地没有流水数据，强制拉取一次
-                if (latestNavRecord == null && latestSnapshot == null) {
-                    try {
-                        fundService.getRealtimeEstimation(code)
-                        latestNavRecord = repository.getLatestNav(code)
-                        latestSnapshot = repository.getLatestSnapshot(code)
-                    } catch (_: Exception) {}
-                }
                 
                 val position = repository.getPosition(code)
                 val fallbackName = position?.fundName ?: "未知基金"
@@ -250,15 +308,16 @@ fun Route.fundRoutes() {
                 mapOf(
                     "code" to code,
                     "name" to (metadata?.fundName ?: fallbackName),
-                    "navDate" to (latestNavRecord?.navDate ?: ""),
-                    "nav" to (latestNavRecord?.nav?.toPlainString() ?: ""),
-                    "estimatedNav" to (latestSnapshot?.estimatedNav?.toPlainString() ?: ""),
-                    "estimatedGrowthRate" to (latestSnapshot?.estimatedGrowthRate?.toPlainString() ?: ""),
+                    "navDate" to (est?.displayNavDate ?: latestNavRecord?.navDate ?: ""),
+                    "nav" to (est?.displayNav ?: latestNavRecord?.nav?.toPlainString() ?: ""),
+                    "estimatedNav" to (est?.displayNav ?: latestSnapshot?.estimatedNav?.toPlainString() ?: ""),
+                    "estimatedGrowthRate" to (est?.displayGrowthRate ?: latestSnapshot?.estimatedGrowthRate?.toPlainString() ?: ""),
                     "sinceAddedGrowthRate" to sinceAddedGrowthRate,
                     "addedDate" to addedDateStr,
                     "estimationTime" to estimationTimeStr,
-                    "yesterdayNav" to (yesterdayNavStr ?: ""),
-                    "manager" to (metadata?.fundManager ?: "")
+                    "yesterdayNav" to (est?.displayYesterdayNav ?: yesterdayNavStr ?: ""),
+                    "manager" to (metadata?.fundManager ?: ""),
+                    "isSettled" to (est?.isSettled ?: false)
                 )
             }
             call.respond(result)

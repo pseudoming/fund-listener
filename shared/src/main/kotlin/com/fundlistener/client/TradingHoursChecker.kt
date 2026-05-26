@@ -76,4 +76,23 @@ object TradingHoursChecker {
      * 获取当前北京时间用于日志/调试。
      */
     fun nowBeijing(): ZonedDateTime = ZonedDateTime.now(ZONE_CN)
+
+    /**
+     * 获取最近一次 A 股收盘的时间戳 (毫秒)。
+     * 用于判定 L2 缓存中的行情数据是否为“绝对新鲜”的收盘价。
+     */
+    fun getLastMarketCloseTimeMs(): Long {
+        var dt = ZonedDateTime.now(ZONE_CN)
+        while (true) {
+            val day = dt.dayOfWeek
+            val isTradingDay = day != DayOfWeek.SATURDAY && day != DayOfWeek.SUNDAY
+            if (isTradingDay) {
+                val closeTime = dt.with(AFTERNOON_CLOSE)
+                if (!dt.isBefore(closeTime)) {
+                    return closeTime.toInstant().toEpochMilli()
+                }
+            }
+            dt = dt.minusDays(1).with(LocalTime.MAX)
+        }
+    }
 }

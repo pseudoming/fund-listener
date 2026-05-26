@@ -23,7 +23,16 @@ data class FundEstimation(
     val estimatedNav: String,
     val estimatedGrowthRate: String,
     val estimationTime: String,
-    val yesterdayNav: String = ""
+    val yesterdayNav: String = "",
+    val type: String? = null,
+    val manager: String? = null,
+    
+    // Normalized Display Fields (Filled by ValuationDisplayNormalizer)
+    val isSettled: Boolean? = null,
+    val displayNavDate: String? = null,
+    val displayNav: String? = null,
+    val displayGrowthRate: String? = null,
+    val displayYesterdayNav: String? = null
 )
 
 /**
